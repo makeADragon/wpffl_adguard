@@ -1,5 +1,7 @@
 m.danawa.com###mdnw-main-dimm
 m.danawa.com###mdnw-main-bottomSheet-container
 etfcheck.co.kr##div[data-v-e4caeaf8].slick-slide
+etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.theme--light:first-child > div:first-child > div.mar15 > div.layout > div.flex.sangse_roll_banner.xs12
 vod.sooplive.com###player > div.adballoon_icon
 /^zzap\d+\.com$/##.partner-banner-content
+/^zzap\d+\.com$/##div.view-content > div.video-long-banner
