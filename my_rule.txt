@@ -7,3 +7,4 @@ vod.sooplive.com###player > div.adballoon_icon
 /^zzap\d+\.com$/##div.view-content > div.video-long-banner
 /^tvwiki\d+\.net$/###bannerList
 /^tvwiki\d+\.net$/###bo_v > ul
+tvhot.store###bo_v > ul
