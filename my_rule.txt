@@ -5,3 +5,4 @@ etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.them
 vod.sooplive.com###player > div.adballoon_icon
 /^zzap\d+\.com$/##.partner-banner-content
 /^zzap\d+\.com$/##div.view-content > div.video-long-banner
+/^tvwiki\d+\.net$/###bannerList
