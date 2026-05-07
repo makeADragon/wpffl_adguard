@@ -2,11 +2,19 @@
 ! Description: 애드가드 커스텀필터
 ! Version: 2026.05.05
 
+! 쇼핑 관련
 m.danawa.com###mdnw-main-dimm
 m.danawa.com###mdnw-main-bottomSheet-container
+
+! 금융 관련
 etfcheck.co.kr##div[data-v-e4caeaf8].slick-slide
 etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.theme--light:first-child > div:first-child > div.mar15 > div.layout > div.flex.sangse_roll_banner.xs12
+
+! 숲, 치지직, 유튜브 관련
 vod.sooplive.com###player > div.adballoon_icon
+sooplive.com##.bnrimg_area
+
+! 다시보기 사이트들
 /^zzap\d+\.com$/###advertiseMain > .pp-wrap
 /^tvwiki\d+\.net$/###bannerList
 /^tvwiki\d+\.net$/###bo_v > ul
