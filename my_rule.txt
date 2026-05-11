@@ -2,6 +2,9 @@
 ! Description: 애드가드 커스텀필터
 ! Version: 2026.05.05
 
+! 네이버 모바일 홈 추천 컨텐츠 차단
+m.naver.com###MM_search_container
+
 ! 쇼핑 관련
 m.danawa.com###mdnw-main-dimm
 m.danawa.com###mdnw-main-bottomSheet-container
