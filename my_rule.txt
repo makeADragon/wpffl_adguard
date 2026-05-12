@@ -3,7 +3,8 @@
 ! Version: 2026.05.05
 
 ! 네이버 모바일 홈 추천 컨텐츠 차단
-m.naver.com###MM_search_container
+m.naver.com##.chf_feed_wrap
+m.naver.com##.MM_INSP_CARD_EXP
 
 ! 쇼핑 관련
 m.danawa.com###mdnw-main-dimm
