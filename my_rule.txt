@@ -2,6 +2,12 @@
 ! Description: 애드가드 커스텀필터
 ! Version: 2026.05.05
 
+! 유저스크립트
+! 나무링크
+! https://cdn.jsdelivr.net/npm/@filteringdev/namulink@latest/dist/NamuLink.user.js
+! 타이니쉴드
+! https://cdn.jsdelivr.net/npm/@filteringdev/tinyshield@latest/dist/tinyShield.user.js
+
 ! 네이버 모바일 홈 추천 컨텐츠 차단
 m.naver.com##.chf_feed_wrap
 m.naver.com##.MM_INSP_CARD_EXP
