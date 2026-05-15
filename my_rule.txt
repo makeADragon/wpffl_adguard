@@ -29,3 +29,5 @@ sooplive.com##.bnrimg_area
 /^tvwiki\d+\.net$/###bannerList
 /^tvwiki\d+\.net$/###bo_v > ul
 tvhot.store###bo_v > ul
+tvchak.live##.banner-box
+tvchak.live###advertiseMain
