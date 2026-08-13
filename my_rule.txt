@@ -1,6 +1,6 @@
 ! Title: my AdGuard custom filter
 ! Description: 애드가드 커스텀필터
-! Version: 2026.05.05
+! Version: 2026.08.13
 
 ! 유저스크립트
 ! 나무링크
