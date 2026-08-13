@@ -1,6 +1,6 @@
 ! Title: my AdGuard custom filter
 ! Description: 애드가드 커스텀필터
-! Version: 2026.08.13
+! Version: 2026.08.13-01
 
 ! 유저스크립트
 ! 나무링크
@@ -28,4 +28,8 @@ vod.sooplive.com###player > div.adballoon_icon
 sooplive.com##.bnrimg_area
 
 ! 기타 요소 차단
-tvhot*.com##div > link[href*="tailwild.css"] ~ div.flex.flex-wrap.items-center
+||tvhot*.com/b.php?url=*
+||tvhot*.com##a[href^="/b.php?url="]
+! 배너 이미지 서버 차단
+||h2.apiapi199.com/data/banner/*
+
