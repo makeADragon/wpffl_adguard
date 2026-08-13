@@ -26,3 +26,8 @@ etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.them
 ! 숲, 치지직, 유튜브 관련
 vod.sooplive.com###player > div.adballoon_icon
 sooplive.com##.bnrimg_area
+
+! 기타 요소 차단
+||tvhot*.com^$third-party
+||apiapi199.com^$third-party
+||h2.apiapi199.com^$third-party
