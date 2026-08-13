@@ -28,6 +28,4 @@ vod.sooplive.com###player > div.adballoon_icon
 sooplive.com##.bnrimg_area
 
 ! 기타 요소 차단
-||tvhot*.com^$third-party
-||apiapi199.com^$third-party
-||h2.apiapi199.com^$third-party
+tvhot*.com##div > link[href*="tailwild.css"] ~ div.flex.flex-wrap.items-center
