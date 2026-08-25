@@ -1,6 +1,6 @@
 ! Title: my AdGuard custom filter
 ! Description: 애드가드 커스텀필터
-! Version: 2026.08.17
+! Version: 2026.08.25
 
 ! 유저스크립트
 ! 나무링크
@@ -12,15 +12,14 @@
 naver.com###whale-banner-bottom > div.banner_download
 
 ! 네이버 모바일 홈 추천 컨텐츠 차단
-m.naver.com##.chf_feed_wrap
-m.naver.com##.MM_INSP_CARD_EXP
-m.naver.com##.MM_FOOTER_TOOLS
+m.naver.com##.chf_feed_wrap, .MM_INSP_CARD_EXP, .MM_FOOTER_TOOLS
+m.naver.com##div.wrap.id_search > div.main_footer > div.mf_tool_wrap.MM_FOOTER_TOOLS
 
 ! 쇼핑 관련
 m.danawa.com###mdnw-main-dimm
 m.danawa.com###mdnw-main-bottomSheet-container
 
-! 금융 관련
+! 금융사이트 관련
 etfcheck.co.kr##div[data-v-e4caeaf8].slick-slide
 etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.theme--light:first-child > div:first-child > div.mar15 > div.layout > div.flex.sangse_roll_banner.xs12
 
