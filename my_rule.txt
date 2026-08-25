@@ -1,6 +1,6 @@
 ! Title: my AdGuard custom filter
 ! Description: 애드가드 커스텀필터
-! Version: 2026.08.25
+! Version: 2026.08.25-1
 
 ! 유저스크립트
 ! 나무링크
@@ -31,6 +31,7 @@ sooplive.com##.bnrimg_area
 ||tvhot*.com/b.php?url=*
 ||tvhot*.com##a[href^="/b.php?url="]
 ||h2.apiapi199.com/data/banner/*
+cokcok*.com##.feature-grid
 
 kissjav.*##+js(nowoif, !kissjav)
 [$domain=/^hoohootv[0-9]*\.[a-z]{2,}/]###img_row_container
