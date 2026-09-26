@@ -49,3 +49,12 @@ kissjav.*#%#//scriptlet('prevent-window-open', '!kissjav')
 [$domain=/^tvroom[0-9]*\.org/]##a[href*="/banner/"][target="_blank"]
 [$domain=/^tvwiki[0-9]*\.net/]###bannerList, #viewCover, img[src*="/banner/"]
 [$domain=/^wftoon[0-9]*\.com/]##.top-banner
+
+! --- 짭플릭스 (zzap### 가변 도메인: PC/모바일 공통) ---
+! 메인 광고 배너 (.pp-wrap 목록, #advertiseMain)
+[$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.pp-container, #advertiseMain
+! 홈 하단 고정 팝업 광고 / PC URL 타겟 팝업 / 파트너 배너
+[$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.popup_mdd
+[$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.popup-frame, .partner-banner-long, .partner-banner-flex
+! 고정 팝업 광고 이미지 호스트 (광고 전용, 콘텐츠 아님)
+||sj.xiaoca.top^
