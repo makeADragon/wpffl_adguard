@@ -1,0 +1,51 @@
+! Title: wpffl - 스트리밍 사이트 (AdGuard)
+! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 adguard-general.txt 참고.
+! Homepage: https://github.com/makeADragon/wpffl_adguard
+! Version: 2026.09.26
+! Expires: 7 days
+!
+! 참고: AdGuard는 $webrtc 모디파이어가 제거되어 WebRTC 차단은 scriptlet(nowebrtc)으로 처리합니다.
+
+! ===== 숲(sooplive) / 유튜브 등 =====
+vod.sooplive.com###player > div.adballoon_icon
+sooplive.com##.bnrimg_area
+
+! ===== web P2P 차단 =====
+! --- WebTorrent 공용 트래커 (전역, 안전) ---
+||tracker.webtorrent.dev^$websocket
+||tracker.openwebtorrent.com^$websocket
+||tracker.btorrent.xyz^$websocket
+||tracker.novage.com.ua^$websocket
+||tracker.cdnbye.com^$websocket
+
+! --- P2P Media Loader(Novage) 로더 스크립트 (전역 패턴) ---
+p2p-media-loader-hlsjs$script
+p2p-media-loader-dashjs$script
+p2p-media-loader-core$script
+
+! --- cdnbye / SwarmCloud 계열 로더 (선택) ---
+hlsjs-p2p-engine$script
+dashjs-p2p-engine$script
+file-p2p-engine$script
+
+! --- 플레이어 프레임 WebRTC 무력화 (호스트 나열식, 발견할 때마다 추가) ---
+player.bunny-frame.online#%#//scriptlet('nowebrtc')
+
+! --- (위험/선택) 전역 WebRTC 차단: 모든 사이트에서 화상회의·웹통화가 깨집니다 ---
+! #%#//scriptlet('nowebrtc')
+
+! ===== tvhot2 =====
+||api4.peertrk.com/css/tailwild.css^$domain=tvhot2.com
+||api4.peertrk.com/data/banner/*$domain=tvhot2.com
+tvhot2.com##div:has(> a[href^="/b.php?url="])
+
+! ===== 기타 스트리밍 사이트 =====
+[$domain=/^cokcok[^.]*\.com/]##.feature-grid
+kissjav.*#%#//scriptlet('prevent-window-open', '!kissjav')
+[$domain=/^hoohootv[0-9]*\.[a-z]{2,}/]###img_row_container
+[$domain=/^toki[0-9]*\.com/]##.vw-swipe-hint, [data-pm-ov="1"]
+[$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##.banner_wrap2
+[$domain=/^tvmon[0-9]*\.[a-z]{2,}/]###banner-row-1
+[$domain=/^tvroom[0-9]*\.org/]##a[href*="/banner/"][target="_blank"]
+[$domain=/^tvwiki[0-9]*\.net/]###bannerList, #viewCover, img[src*="/banner/"]
+[$domain=/^wftoon[0-9]*\.com/]##.top-banner

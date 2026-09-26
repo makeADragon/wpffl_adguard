@@ -1,0 +1,24 @@
+! Title: wpffl - 일반 사이트 (AdGuard)
+! Description: 일반 사이트 광고/요소 차단. 스트리밍 사이트 규칙은 adguard-streaming.txt 참고.
+! Homepage: https://github.com/makeADragon/wpffl_adguard
+! Version: 2026.09.26
+! Expires: 7 days
+
+! ===== 네이버 =====
+! 네이버 데스크톱 홈 웨일 다운로드 차단
+naver.com###whale-banner-bottom > div.banner_download
+
+! 네이버 모바일 홈 추천 컨텐츠 차단
+m.naver.com##.chf_feed_wrap, .MM_INSP_CARD_EXP, .MM_FOOTER_TOOLS
+m.naver.com##div.wrap.id_search > div.main_footer > div.mf_tool_wrap.MM_FOOTER_TOOLS
+
+! ===== 쇼핑 =====
+m.danawa.com###mdnw-main-dimm
+m.danawa.com###mdnw-main-bottomSheet-container
+
+! ===== 금융 =====
+etfcheck.co.kr##div[data-v-e4caeaf8].slick-slide
+etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.theme--light:first-child > div:first-child > div.mar15 > div.layout > div.flex.sangse_roll_banner.xs12
+
+! ===== 기타 (전역) =====
+||h2.apiapi199.com/data/banner/*
