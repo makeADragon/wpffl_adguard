@@ -71,6 +71,11 @@ https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-streamin
 
 ## 변경 로그
 
+- 2026.09.26: 짭플릭스(zzap###) 광고 차단 규칙 추가. 도메인 숫자는 가변값으로 처리
+  (`[$domain=/^zzap[0-9]*\.[a-z]{2,}/]`). PC/모바일 공통 광고 배너(`#advertiseMain`),
+  고정 팝업(`.popup_mdd`), PC URL 팝업(`.popup-frame`), 파트너 배너 차단 +
+  팝업 광고 이미지 호스트(`sj.xiaoca.top`) 네트워크 차단.
+  uBO 최신 파서 / AdGuard agtree 문법 검증 및 실사이트 DOM 확인 완료.
 - 2026.09.26: `my_rule.txt` → 4개 파일(adguard/ublock × general/streaming)로 분리.
   P2P 차단에 cdnbye/SwarmCloud 트래커·로더 규칙 추가, AdGuard/uBO 문법 차이 반영.
 - 2026.09.26: 독립 public 레포로 전환 (`makeADragon/wpffl_adguard`). 4개 raw URL 구독 방식 사용.
