@@ -1,61 +1,13 @@
-! Title: my AdGuard custom filter
-! Description: 애드가드 커스텀필터
-! Version: 2026.09.26
-
-! 유저스크립트
-! 나무링크
-! https://cdn.jsdelivr.net/npm/@filteringdev/namulink@latest/dist/NamuLink.user.js
-! 타이니쉴드
-! https://cdn.jsdelivr.net/npm/@filteringdev/tinyshield@latest/dist/tinyShield.user.js
-
-!네이버 데스크톱 홈 웨일 다운로드 차단
-naver.com###whale-banner-bottom > div.banner_download
-
-! 네이버 모바일 홈 추천 컨텐츠 차단
-m.naver.com##.chf_feed_wrap, .MM_INSP_CARD_EXP, .MM_FOOTER_TOOLS
-m.naver.com##div.wrap.id_search > div.main_footer > div.mf_tool_wrap.MM_FOOTER_TOOLS
-
-! 쇼핑 관련
-m.danawa.com###mdnw-main-dimm
-m.danawa.com###mdnw-main-bottomSheet-container
-
-! 금융사이트 관련
-etfcheck.co.kr##div[data-v-e4caeaf8].slick-slide
-etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.theme--light:first-child > div:first-child > div.mar15 > div.layout > div.flex.sangse_roll_banner.xs12
-
-! 숲, 치지직, 유튜브 관련
-vod.sooplive.com###player > div.adballoon_icon
-sooplive.com##.bnrimg_area
-
-! web P2P 차단
-! ===== WebTorrent 공용 트래커 (전역, 안전) =====
-||tracker.webtorrent.dev^$websocket
-||tracker.openwebtorrent.com^$websocket
-||tracker.btorrent.xyz^$websocket
-||tracker.novage.com.ua^$websocket
-
-! ===== P2P Media Loader 스크립트 (전역 패턴) =====
-p2p-media-loader-hlsjs$script
-p2p-media-loader-dashjs$script
-p2p-media-loader-core$script
-
-! ===== 플레이어 프레임 WebRTC 봉인 (호스트 나열식, 발견할 때마다 추가) =====
-player.bunny-frame.online##+js(nowebrtc)
-
-
-! 기타 요소 차단
-||api4.peertrk.com/css/tailwild.css^$domain=tvhot2.com
-||api4.peertrk.com/data/banner/*$domain=tvhot2.com
-tvhot2.com##div:has(> a[href^="/b.php?url="])
-||h2.apiapi199.com/data/banner/*
-cokcok*.com##.feature-grid
-
-kissjav.*##+js(nowoif, !kissjav)
-[$domain=/^hoohootv[0-9]*\.[a-z]{2,}/]###img_row_container
-[$domain=/^toki[0-9]*\.com/]##.vw-swipe-hint, [data-pm-ov="1"]
-[$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##.banner_wrap2
-[$domain=/^tvmon[0-9]*\.[a-z]{2,}/]###banner-row-1
-[$domain=/^tvroom[0-9]*\.org/]##a[href*="/banner/"][target="_blank"]
-[$domain=/^tvwiki[0-9]*\.net/]###bannerList, #viewCover, img[src*="/banner/"]
-[$domain=/^wftoon[0-9]*\.com/]##.top-banner
-
+! 이 파일은 2026.09.26부로 4개 파일로 분리되었습니다.
+!
+!   일반 사이트   : adguard-general.txt  / ublock-general.txt
+!   스트리밍 사이트: adguard-streaming.txt / ublock-streaming.txt
+!
+! 사용 중인 필터 구독을 아래 URL로 교체해 주세요.
+!
+!   https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/adguard-general.txt
+!   https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/adguard-streaming.txt
+!   https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-general.txt
+!   https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-streaming.txt
+!
+! 자세한 내용은 README.md 참고.
