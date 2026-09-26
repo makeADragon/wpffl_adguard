@@ -1,6 +1,6 @@
 ! Title: my AdGuard custom filter
 ! Description: 애드가드 커스텀필터
-! Version: 2026.09.25
+! Version: 2026.09.26
 
 ! 유저스크립트
 ! 나무링크
@@ -26,6 +26,22 @@ etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.them
 ! 숲, 치지직, 유튜브 관련
 vod.sooplive.com###player > div.adballoon_icon
 sooplive.com##.bnrimg_area
+
+! web P2P 차단
+! ===== WebTorrent 공용 트래커 (전역, 안전) =====
+||tracker.webtorrent.dev^$websocket
+||tracker.openwebtorrent.com^$websocket
+||tracker.btorrent.xyz^$websocket
+||tracker.novage.com.ua^$websocket
+
+! ===== P2P Media Loader 스크립트 (전역 패턴) =====
+p2p-media-loader-hlsjs$script
+p2p-media-loader-dashjs$script
+p2p-media-loader-core$script
+
+! ===== 플레이어 프레임 WebRTC 봉인 (호스트 나열식, 발견할 때마다 추가) =====
+player.bunny-frame.online##+js(nowebrtc)
+
 
 ! 기타 요소 차단
 ||api4.peertrk.com/css/tailwild.css^$domain=tvhot2.com
