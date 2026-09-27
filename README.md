@@ -17,3 +17,9 @@ https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/adguard-streami
 https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-general.txt
 https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-streaming.txt
 ```
+
+### 유저스크립트
+
+```
+https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/anti-devtools.user.js
+```
