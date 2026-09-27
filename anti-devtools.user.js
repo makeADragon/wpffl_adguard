@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         DevTools 보호 해제 (범용)
 // @namespace    local.anti-devtools
-// @version      1.0.0
-// @description  F12·우클릭·드래그·텍스트선택 차단 및 무한 debugger 루프를 무력화
+// @version      1.1.0
+// @description  F12·우클릭·드래그·선택 차단, 무한 debugger 루프, disable-devtool 등 관리자도구 감지 무력화
 // @author       wpffl_adguard
 // @match        *://*/*
 // @run-at       document-start
@@ -77,6 +77,50 @@
     Object.defineProperty(window, 'outerWidth',  { get: function () { return window.innerWidth;  }, configurable: true });
     Object.defineProperty(window, 'outerHeight', { get: function () { return window.innerHeight; }, configurable: true });
   } catch (e) {}
+
+  // ---------- 5) console 기반 감지 무력화 ----------
+  // disable-devtool 등은 console.log/table에 객체를 넘겨 DevTools가 열려 있을 때
+  // getter/toString이 호출되는 것을 감지합니다. 객체/함수 인자는 원본 console에
+  // 전달하지 않고 무시해 감지를 막습니다. (문자열·숫자 로그는 그대로 동작)
+  (function () {
+    function isPrimitive(v) {
+      return v === null || (typeof v !== 'object' && typeof v !== 'function');
+    }
+    ['log', 'table', 'info', 'warn', 'error', 'debug', 'dir', 'dirxml'].forEach(function (m) {
+      try {
+        var c = window.console;
+        if (!c || typeof c[m] !== 'function') return;
+        var orig = c[m];
+        c['__orig_' + m] = orig;
+        c[m] = function () {
+          var args = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < args.length; i++) {
+            if (!isPrimitive(args[i])) return; // 객체/함수 → 감지 트랩일 수 있으므로 무시
+          }
+          return orig.apply(c, arguments);
+        };
+      } catch (e) {}
+    });
+    try { if (window.console) window.console.clear = function () {}; } catch (e) {}
+  })();
+
+  // ---------- 6) 알려진 anti-devtool 스크립트 로드 차단 ----------
+  (function () {
+    var blocked = /disable-devtool|devtools-detect|devtools-detector|anti-devtool|debug-prevent/i;
+    function isBlocked(el) {
+      return el && el.tagName === 'SCRIPT' && blocked.test(String(el.src || ''));
+    }
+    var _append = Node.prototype.appendChild;
+    var _insert = Node.prototype.insertBefore;
+    Node.prototype.appendChild = function (el) {
+      if (isBlocked(el)) return el;
+      return _append.call(this, el);
+    };
+    Node.prototype.insertBefore = function (el, ref) {
+      if (isBlocked(el)) return el;
+      return _insert.call(this, el, ref);
+    };
+  })();
 
   console.log('%c[Anti-Anti-DevTools] 활성화 완료', 'color:#27ae60;font-weight:bold');
 })();
