@@ -64,6 +64,12 @@ https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-streamin
 - uBO는 도메인 없는 generic 스크립틀릿(`##+js(...)`)을 무시함 → 호스트 나열식 사용
 - 두 파일 모두 uBO 파서 / AdGuard agtree 파서로 문법 검증 완료 (2026.09.26)
 
+## 유저스크립트
+
+- `anti-devtools.user.js` — F12·우클릭·드래그·텍스트선택 차단 및 무한 debugger 루프를 무력화하는 범용 스크립트.
+  Tampermonkey/Violentmonkey에서 새 스크립트로 등록해 사용 (`@run-at document-start`).
+  구독 URL: https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/anti-devtools.user.js
+
 ## 관련 유저스크립트 (참고)
 
 - 나무링크: https://cdn.jsdelivr.net/npm/@filteringdev/namulink@latest/dist/NamuLink.user.js
@@ -71,6 +77,8 @@ https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-streamin
 
 ## 변경 로그
 
+- 2026.09.27: `anti-devtools.user.js` 추가. 관리자도구(F12/우클릭/드래그/선택) 차단 및
+  무한 debugger 루프를 무력화하는 범용 유저스크립트 (Tampermonkey/Violentmonkey용).
 - 2026.09.26: 짭플릭스(zzap###) 광고 차단 규칙 추가. 도메인 숫자는 가변값으로 처리
   (`[$domain=/^zzap[0-9]*\.[a-z]{2,}/]`). PC/모바일 공통 광고 배너(`#advertiseMain`),
   고정 팝업(`.popup_mdd`), PC URL 팝업(`.popup-frame`), 파트너 배너 차단 +
