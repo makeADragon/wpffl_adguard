@@ -1,7 +1,7 @@
 ! Title: wpffl - 스트리밍 사이트 (AdGuard)
 ! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 adguard-general.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.09.26
+! Version: 2026.09.28
 ! Expires: 7 days
 !
 ! 참고: AdGuard는 $webrtc 모디파이어가 제거되어 WebRTC 차단은 scriptlet(nowebrtc)으로 처리합니다.
@@ -51,8 +51,11 @@ kissjav.*#%#//scriptlet('prevent-window-open', '!kissjav')
 [$domain=/^wftoon[0-9]*\.com/]##.top-banner
 
 ! --- 짭플릭스 (zzap### 가변 도메인: PC/모바일 공통) ---
-! 메인 광고 배너 (.pp-wrap 목록, #advertiseMain)
-[$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.pp-container, #advertiseMain
+! 메인/목록 상단 광고 배너 (광고 단위 .pp-wrap)
+! 주의: 모바일 상세 페이지는 #advertiseMain.pp-container 안에
+!       플레이어(.frame-video)·본문(.content)까지 함께 들어 있어
+!       컨테이너를 통째로 숨기면 콘텐츠가 전부 사라집니다. (2026.09.28 수정)
+[$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.pp-wrap
 ! 홈 하단 고정 팝업 광고 / PC URL 타겟 팝업 / 파트너 배너
 [$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.popup_mdd
 [$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.popup-frame, .partner-banner-long, .partner-banner-flex
