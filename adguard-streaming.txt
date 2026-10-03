@@ -60,9 +60,21 @@ kissjav.*#%#//scriptlet('prevent-window-open', '!kissjav')
 [$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.popup_mdd
 [$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.popup-frame, .partner-banner-long, .partner-banner-flex
 ! 고정 팝업 광고 이미지 호스트 (광고 전용, 콘텐츠 아님)
-||sj.xiaoca.top^
+! 주의: 미미티비는 같은 호스트를 콘텐츠 썸네일로도 사용하므로 zzap/tvchak으로 한정 (2026.10.03)
+||sj.xiaoca.top^$domain=/^zzap[0-9]*\.[a-z]{2,}/|/^tvchak[0-9]*\.[a-z]{2,}/
 
 ! --- 티비착 (tvchak### 가변 도메인) ---
 ! 초기화면 팝업 광고 (z-index 1550 레이어: 광고 이미지 + "오늘 그만보기"/닫기)
 ! 광고 이미지는 위 sj.xiaoca.top 규칙으로 이미 차단됨
 [$domain=/^tvchak[0-9]*\.[a-z]{2,}/]##.popup_mdd
+
+! --- 미미티비 (mimitv### 가변 도메인) ---
+! 상단 제휴/도박 배너 그리드 (홈·목록·재생 페이지 공통)
+[$domain=/^mimitv[0-9]*\.[a-z]{2,}/]##.custom_banner_wrap
+! 전체화면 팝업 광고 (custom-popup-banner 플러그인, 홈 초기화면)
+[$domain=/^mimitv[0-9]*\.[a-z]{2,}/]###cpb-popup-banners
+! VAST 프리롤 영상 광고: 스크립트·서버 차단 + 동적 컨테이너 숨김
+! (스크립트만 차단해도 본 영상 재생은 정상 동작)
+/wp-content/themes/fmovie/assets/js/vast-preroll.js$script
+||cokcok.stream/public/vast.php$xmlhttprequest
+[$domain=/^mimitv[0-9]*\.[a-z]{2,}/]###vast-ad-container
