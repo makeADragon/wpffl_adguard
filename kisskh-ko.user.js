@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.0.3
+// @version      1.0.4
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -19,12 +19,10 @@
    * ------------------------------------------------------------------ */
   const HANGUL_RE = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/;
   const SUB_API_RE = /\/api\/Sub\/\d+/;
-  const SEARCH_API_RE = /\/api\/DramaList\/Search/;
   const WEEK_MS = 7 * 864e5;
   const LS = {
     settings: 'kkh_settings_v1',
     titles: 'kkh_titles_v1',
-    search: 'kkh_search_v1',
     subsPrefix: 'kkh_sub_v1_',
     subsIndex: 'kkh_sub_index_v1'
   };
@@ -34,8 +32,7 @@
     provider: 'gemini', // gemini | openai
     apiKey: '',
     model: 'gemini-2.5-flash',
-    baseUrl: 'https://api.openai.com/v1',
-    tmdbKey: ''
+    baseUrl: 'https://api.openai.com/v1'
   };
 
   function loadJSON(key, def) {
@@ -79,7 +76,6 @@
    * 1. 제목 캐시 / 검색 캐시
    * ------------------------------------------------------------------ */
   const titleCache = loadJSON(LS.titles, {});   // normEn -> {ko, en, ts}
-  const searchCache = loadJSON(LS.search, {});  // normKo -> {en, ts}
   let titleSaveTimer = null;
   function scheduleTitleSave() {
     if (titleSaveTimer) return;
@@ -111,29 +107,7 @@
     return inter / Math.max(wx.size, wy.size) >= 0.7;
   }
 
-  /* --- 1a. TMDB (API 키가 있을 때, 커버리지 최고) --- */
-  async function tmdbLookup(raw) {
-    if (!settings.tmdbKey) return null;
-    for (const v of titleVariants(raw)) {
-      for (const kind of ['tv', 'movie']) {
-        try {
-          const u = 'https://api.themoviedb.org/3/search/' + kind +
-            '?api_key=' + encodeURIComponent(settings.tmdbKey) +
-            '&language=ko-KR&include_adult=false&query=' + encodeURIComponent(v);
-          const d = await fetchJson(u);
-          if (!d.results || !d.results.length) continue;
-          const pick = d.results.find(r => similarTitle(r.name || r.title || '', v)) || d.results[0];
-          const name = pick.name || pick.title || '';
-          if (HANGUL_RE.test(name)) return name;
-          const orig = pick.original_name || pick.original_title || '';
-          if (HANGUL_RE.test(orig)) return orig;
-        } catch (e) {}
-      }
-    }
-    return null;
-  }
-
-  /* --- 1b. Wikipedia (영문 문서 → 한국어 인터링크) --- */
+  /* --- 1a. Wikipedia (영문 문서 → 한국어 인터링크) --- */
   async function wikiLookup(raw) {
     for (const v of titleVariants(raw)) {
       try {
@@ -154,7 +128,7 @@
     return null;
   }
 
-  /* --- 1c. Wikidata (한국어 라벨) --- */
+  /* --- 1b. Wikidata (한국어 라벨) --- */
   async function wikidataLookup(raw) {
     for (const v of titleVariants(raw)) {
       try {
@@ -179,7 +153,7 @@
     return null;
   }
 
-  /* --- 1d. 통합 조회 (캐시 → TMDB → Wikipedia → Wikidata) --- */
+  /* --- 1c. 통합 조회 (캐시 → Wikipedia → Wikidata) --- */
   let titleBlockUntil = 0; // 429(요청 제한) 발생 시 잠시 중단
   function noteError(e) {
     if (e && /429/.test(String(e.message || e))) titleBlockUntil = Date.now() + 90000;
@@ -195,14 +169,9 @@
     if (titlePending.has(key)) return titlePending.get(key);
     const job = (async () => {
       let ko = null;
-      try { ko = await tmdbLookup(raw); } catch (e) { noteError(e); }
-      if (!ko) { try { ko = await wikiLookup(raw); } catch (e) { noteError(e); } }
+      try { ko = await wikiLookup(raw); } catch (e) { noteError(e); }
       if (!ko) { try { ko = await wikidataLookup(raw); } catch (e) { noteError(e); } }
       titleCache[key] = { ko: ko || null, en: String(raw || '').trim(), ts: Date.now() };
-      if (ko) {
-        searchCache[normKey(ko)] = { en: String(raw || '').trim(), ts: Date.now() };
-        saveJSON(LS.search, searchCache);
-      }
       scheduleTitleSave();
       return ko;
     })();
@@ -329,17 +298,10 @@
     if (!XHR) return;
     const origOpen = XHR.prototype.open;
     const origSend = XHR.prototype.send;
-    const origSetHeader = XHR.prototype.setRequestHeader;
 
     XHR.prototype.open = function (method, url) {
       this.__kkhUrl = typeof url === 'string' ? url : String(url);
-      this.__kkhOpenArgs = Array.prototype.slice.call(arguments);
-      this.__kkhHeaders = [];
       return origOpen.apply(this, arguments);
-    };
-    XHR.prototype.setRequestHeader = function (name, value) {
-      if (this.__kkhHeaders) this.__kkhHeaders.push([name, value]);
-      return origSetHeader.apply(this, arguments);
     };
     XHR.prototype.send = function (body) {
       const url = this.__kkhUrl || '';
@@ -354,32 +316,6 @@
         });
       }
 
-      // (2) 한글 검색어 → 캐시된 영어 제목으로 즉시 치환 (동기, abort 위험 없음)
-      if (SEARCH_API_RE.test(url)) {
-        const m = url.match(/[?&]q=([^&]*)/);
-        if (m) {
-          const q = decodeURIComponent(m[1]);
-          if (HANGUL_RE.test(q)) {
-            const en = searchCacheLookup(q);
-            if (en) {
-              const newUrl = url.replace(/([?&]q=)[^&]*/, '$1' + encodeURIComponent(en));
-              try {
-                const args = this.__kkhOpenArgs.slice();
-                args[1] = newUrl;
-                const headers = (this.__kkhHeaders || []).slice();
-                const rt = this.responseType, wc = this.withCredentials, to = this.timeout;
-                origOpen.apply(this, args);
-                this.responseType = rt;
-                this.withCredentials = wc;
-                this.timeout = to;
-                headers.forEach(h => origSetHeader.call(this, h[0], h[1]));
-                this.__kkhUrl = newUrl;
-                return origSend.call(this, body);
-              } catch (e) { /* 실패 시 원래 요청으로 진행 */ }
-            }
-          }
-        }
-      }
       return origSend.apply(this, arguments);
     };
   })();
@@ -646,23 +582,32 @@
     }
     const epId = lastSubs && lastSubs.epId;
     const ck = epId ? subCacheKey(epId) : null;
+    const lines = new Array(enCues.length).fill(null);
+    let resumed = 0;
     if (ck) {
+      // 저장된 번역(완료 또는 진행분)을 불러와 이어서 작업한다
       const cached = loadJSON(ck, null);
       if (cached && Array.isArray(cached) && cached.length === enCues.length) {
-        applyAiLines(cues, enCues, cached);
-        setStatus('AI 자막 적용됨 (캐시)');
-        return;
+        for (let i = 0; i < cached.length; i++) lines[i] = cached[i] || null;
+        resumed = lines.filter(x => x).length;
+        if (resumed) applyAiLines(cues, enCues, lines);
+        if (resumed === enCues.length) {
+          setStatus('AI 자막 적용됨 (캐시)');
+          return;
+        }
       }
     }
     const BATCH = 25;
     const total = Math.ceil(enCues.length / BATCH);
-    const lines = new Array(enCues.length).fill(null);
     const ctx = dramaContext();
-    setStatus('AI 번역 시작… (0/' + total + ')');
+    setStatus(resumed
+      ? 'AI 번역 이어서… (' + resumed + '/' + enCues.length + '줄 완료)'
+      : 'AI 번역 시작… (0/' + total + ')');
     let done = 0;
     for (let a = 0; a < enCues.length; a += BATCH) {
       if (aiToken !== token) return; // 트랙이 바뀌면 중단
       const b = Math.min(a + BATCH, enCues.length);
+      if (lines.slice(a, b).every(x => x)) { done++; continue; } // 이미 번역된 구간
       const texts = enCues.slice(a, b).map(c => c.text);
       const arr = await translateBatch(texts, ctx, token);
       if (aiToken !== token) return;
@@ -670,15 +615,16 @@
       done++;
       setStatus('AI 번역 중… (' + done + '/' + total + ')');
       applyAiLines(cues, enCues, lines);
+      if (ck) {
+        // 진행분을 즉시 저장 → 중간에 끊어도 다음에 이어서 번역
+        try {
+          localStorage.setItem(ck, JSON.stringify(lines));
+          rememberSubCache(ck);
+        } catch (e) {}
+      }
     }
     if (aiToken !== token) return;
     const missed = lines.filter(x => !x).length;
-    if (ck && !missed) {
-      try {
-        localStorage.setItem(ck, JSON.stringify(lines));
-        rememberSubCache(ck);
-      } catch (e) {}
-    }
     setStatus(missed
       ? 'AI 자막 완료 — ' + missed + '개 구간은 사이트 자막 유지'
       : 'AI 자막 번역 완료 (' + total + '묶음)');
@@ -729,77 +675,12 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 6. 한글 검색 지원
-   * ------------------------------------------------------------------ */
-  function searchCacheLookup(q) {
-    const k = normKey(q);
-    const c = searchCache[k];
-    if (c && Date.now() - c.ts < 30 * 864e5) return c.en;
-    for (const v of Object.values(titleCache)) {
-      if (v && v.ko && normKey(v.ko) === k) return v.en || null;
-    }
-    return null;
-  }
-
-  async function resolveKoreanQuery(q) {
-    const hit = searchCacheLookup(q);
-    if (hit) return hit;
-    let en = null;
-    try {
-      const su = 'https://www.wikidata.org/w/api.php?action=wbsearchentities' +
-        '&search=' + encodeURIComponent(q) + '&language=ko&uselang=ko&format=json&origin=*&limit=8';
-      const d = await fetchJson(su);
-      const cands = d.search || [];
-      const best = cands.find(x => /드라마|시리즈|텔레비전|방송|영화/.test(x.description || '')) || cands[0];
-      if (best) {
-        const eu = 'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=' + best.id +
-          '&props=labels&languages=ko|en&format=json&origin=*';
-        const d2 = await fetchJson(eu);
-        const e = d2.entities && d2.entities[best.id];
-        en = e && e.labels && e.labels.en && e.labels.en.value;
-      }
-    } catch (e) { noteError(e); }
-    if (!en && settings.tmdbKey) {
-      try {
-        const tu = 'https://api.themoviedb.org/3/search/tv?api_key=' + encodeURIComponent(settings.tmdbKey) +
-          '&language=en-US&query=' + encodeURIComponent(q);
-        const d = await fetchJson(tu);
-        if (d.results && d.results.length) en = d.results[0].name || d.results[0].original_name;
-      } catch (e) { noteError(e); }
-    }
-    if (en) {
-      searchCache[normKey(q)] = { en, ts: Date.now() };
-      saveJSON(LS.search, searchCache);
-    }
-    return en;
-  }
-
-  // 사이트 검색창: 한글 입력 → 영어 제목으로 바꿔서 검색되게 함
-  function hookSearchInput() {
-    document.addEventListener('input', ev => {
-      const t = ev.target;
-      if (!t || t.id !== 'search') return;
-      const v = t.value || '';
-      if (!HANGUL_RE.test(v)) return;
-      if (t.dataset.kkhResolving === v) return;
-      t.dataset.kkhResolving = v;
-      resolveKoreanQuery(v).then(en => {
-        if (!en || !t.isConnected || t.value !== v) return;
-        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-        setter.call(t, en);
-        t.dispatchEvent(new Event('input', { bubbles: true }));
-        setStatus('한글 검색 → "' + en + '" (으)로 변환');
-      }).catch(() => {});
-    }, true);
-  }
-
-  /* ------------------------------------------------------------------ *
-   * 7. UI 패널
+   * 6. UI 패널
    * ------------------------------------------------------------------ */
   let panelEl = null, statusEl = null, fabEl = null;
   function setStatus(text) {
     if (statusEl) statusEl.textContent = text || '';
-    if (fabEl) fabEl.dataset.busy = text && /번역 중|번역 시작/.test(text) ? '1' : '';
+    if (fabEl) fabEl.dataset.busy = text && /번역 중|번역 시작|번역 이어서/.test(text) ? '1' : '';
   }
 
   function h(tag, attrs, children) {
@@ -829,8 +710,6 @@
       '#kkh-panel button{cursor:pointer;background:#39404b;color:#fff;border:none;border-radius:6px;padding:5px 9px;font-size:12px}',
       '#kkh-panel button:hover{background:#4a5361}',
       '#kkh-status{min-height:16px;margin-top:8px;color:#9fd6a0;font-size:11.5px;word-break:break-all}',
-      '#kkh-qres a{display:block;color:#9ecbff;text-decoration:none;padding:4px 0;border-bottom:1px solid #2c333c;font-size:12px}',
-      '#kkh-qres a:hover{color:#fff}',
       '.kkh-hint{color:#98a2ad;font-size:11px;margin-top:3px}'
     ].join('');
     document.documentElement.appendChild(style);
@@ -888,84 +767,37 @@
     modelInp.addEventListener('change', () => { settings.model = modelInp.value.trim(); saveSettings(); });
     baseInp.addEventListener('change', () => { settings.baseUrl = baseInp.value.trim(); saveSettings(); });
 
-    // TMDB
-    const tmdbInp = h('input', { type: 'text', placeholder: 'TMDB API 키 (선택)', value: settings.tmdbKey });
-    tmdbInp.addEventListener('change', () => { settings.tmdbKey = tmdbInp.value.trim(); saveSettings(); setStatus('TMDB 키 저장됨 — 제목 조회 정확도 향상'); });
-    const tmdbSec = h('div', { class: 'sec' }, [
-      h('h3', { text: '제목 정확도 (선택)' }),
-      tmdbInp,
-      h('div', { class: 'kkh-hint', text: 'TMDB 무료 키를 넣으면 거의 모든 드라마의 한국어 제목을 찾습니다.' })
-    ]);
-
-    // 한글 검색
-    const qInp = h('input', { id: 'kkh-q', type: 'text', placeholder: '한글로 검색 (예: 사랑의 불시착)' });
-    const qBtn = h('button', { text: '찾기', style: 'margin-top:6px' });
-    const qRes = h('div', { id: 'kkh-qres' });
-    async function doSearch() {
-      const q = qInp.value.trim();
-      if (!q) return;
-      qRes.textContent = '';
-      setStatus('검색어 변환 중…');
-      const en = HANGUL_RE.test(q) ? await resolveKoreanQuery(q) : q;
-      if (!en) { setStatus('영어 제목을 찾지 못했습니다'); return; }
-      setStatus('"' + en + '" 검색 중…');
-      try {
-        const d = await fetchJson('/api/DramaList/Search?q=' + encodeURIComponent(en) + '&type=0');
-        const list = Array.isArray(d) ? d.slice(0, 8) : [];
-        qRes.textContent = '';
-        if (!list.length) { setStatus('결과 없음'); return; }
-        for (const item of list) {
-          const a = h('a', { href: '/Drama/' + encodeURIComponent(String(item.title || 'drama').replace(/\s+/g, '-')) + '?id=' + item.id });
-          let ko = '';
-          try { ko = (await lookupKoTitle(item.title)) || ''; } catch (e) {}
-          a.textContent = (ko ? ko + ' — ' : '') + item.title;
-          a.addEventListener('click', () => { qRes.textContent = ''; qInp.value = ''; });
-          qRes.appendChild(a);
-        }
-        setStatus('검색 결과 ' + list.length + '건');
-      } catch (e) { setStatus('검색 실패'); }
-    }
-    qBtn.addEventListener('click', doSearch);
-    qInp.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
-    const searchSec = h('div', { class: 'sec' }, [
-      h('h3', { text: '한글 검색' }),
-      qInp, qBtn, qRes
-    ]);
-
     // 캐시/정보
     const clearBtn = h('button', { text: '캐시 비우기' });
     clearBtn.addEventListener('click', () => {
       try {
         for (const k in titleCache) delete titleCache[k];
-        for (const k in searchCache) delete searchCache[k];
         const idx = loadJSON(LS.subsIndex, []);
         idx.forEach(k => localStorage.removeItem(k));
         localStorage.removeItem(LS.subsIndex);
         localStorage.removeItem(LS.titles);
-        localStorage.removeItem(LS.search);
       } catch (e) {}
       setStatus('캐시를 비웠습니다');
     });
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn,
-      h('div', { class: 'kkh-hint', text: 'v1.0.3 · 자막 캐시는 최근 30개 에피소드까지 보관' })
+      h('div', { class: 'kkh-hint', text: 'v1.0.4 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
 
-    [titleSec, subSec, aiSec, tmdbSec, searchSec, infoSec, statusEl].forEach(x => panelEl.appendChild(x));
+    [titleSec, subSec, aiSec, infoSec, statusEl].forEach(x => panelEl.appendChild(x));
     root.appendChild(fabEl);
     root.appendChild(panelEl);
     document.documentElement.appendChild(root);
   }
 
   /* ------------------------------------------------------------------ *
-   * 8. 초기화
+   * 7. 초기화
    * ------------------------------------------------------------------ */
   function init() {
     buildPanel();
-    hookSearchInput();
 
     // 제목 감시 (MutationObserver + 주기 스캔 + 스크롤)
     const mo = new MutationObserver(() => scheduleScanTitles());
@@ -990,13 +822,11 @@
     window.__kkh = {
       get settings() { return settings; },
       get titleCache() { return titleCache; },
-      get searchCache() { return searchCache; },
       get queue() { return titleQueue.length; },
       get lastSubs() { return lastSubs; },
       get paceMs() { return apiPaceMs; },
       scanTitles: scanTitles,
       lookupKoTitle: lookupKoTitle,
-      resolveKoreanQuery: resolveKoreanQuery,
       watchSubtitles: watchSubtitles
     };
 
