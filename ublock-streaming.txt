@@ -47,6 +47,7 @@ kissjav.*##+js(nowoif, !kissjav)
 [$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##.banner_wrap2
 [$domain=/^tvmon[0-9]*\.[a-z]{2,}/]###banner-row-1
 [$domain=/^tvroom[0-9]*\.org/]##a[href*="/banner/"][target="_blank"]
+[$domain=/^tvwiki[0-9]*\.net/]###bannerList, #viewCover, img[src*="/banner/"]
 [$domain=/^wftoon[0-9]*\.com/]##.top-banner
 
 ! --- 짭플릭스 (zzap### 가변 도메인: PC/모바일 공통) ---
@@ -60,32 +61,6 @@ kissjav.*##+js(nowoif, !kissjav)
 [$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.popup-frame, .partner-banner-long, .partner-banner-flex
 ! 고정 팝업 광고 이미지 호스트 (광고 전용, 콘텐츠 아님)
 ||sj.xiaoca.top^
-
-! --- 티비위키 (tvwiki### 가변 도메인) ---
-! 사이트 배너 영역/배너 이미지 (기존 규칙 유지)
-[$domain=/^tvwiki[0-9]*\.net/]###bannerList, #viewCover, img[src*="/banner/"]
-! 사이트 하단 트래커/핑거프린트 (콘텐츠 아님)
-||whoas.xyz^
-||api2.peertrk.com/js/fingerprint.js^$domain=/^tvwiki[0-9]*\.net/
-! --- 버퍼링 원인: 플레이어 P2P(WebTorrent) 업로드 차단 ---
-! 플레이어(*.bunny-frame.online / *.bunny-cdn-player.online)는 p2p-media-loader로
-! 재생 15초 뒤부터 P2P 조각 우선 + 5분 앞까지 미리 받아 다른 시청자에게 공유(업로드)한다.
-! 시청자 업로드가 회선을 잡아먹으면 버퍼링이 생기므로 트래커/WebRTC를 끊어 HTTP 전용으로 강제.
-! (로더 스크립트는 위 web P2P 차단의 p2p-media-loader-* 패턴으로 이미 차단됨)
-! (트래커 요청은 플레이어 iframe이 발신지이므로 $domain= 없이 전역 차단)
-||t.peertrk.com^
-bunny-cdn-player.online##+js(nowebrtc)
-! 플레이어 오버레이 광고(4시간 1회 표시, 3초간 재생 잠금)
-! - localStorage tvp:banner:last를 미래 시각으로 세팅해 배너 표시 자체를 원천 차단(3초 잠금도 없어짐)
-! - 표시돼도 .tvp-ad 요소 숨김으로 대응
-player.bunny-frame.online##+js(set-local-storage-item, tvp:banner:last, 99999999999999)
-bunny-cdn-player.online##+js(set-local-storage-item, tvp:banner:last, 99999999999999)
-[$domain=/bunny-frame\.online|bunny-cdn-player\.online/]##.tvp-ad
-! 플레이어 배너 광고 이미지/링크 (비트365 등 사설 광고)
-/player/banner/*$image
-||bit365.lol^
-! 사이트 배너 광고 이미지 요청 자체 차단 (표시 숨김과 별개로 다운로드 절약)
-||api2.peertrk.com/data/banner/*$domain=/^tvwiki[0-9]*\.net/
 
 ! --- 티비착 (tvchak### 가변 도메인) ---
 ! 초기화면 팝업 광고 (z-index 1550 레이어: 광고 이미지 + "오늘 그만보기"/닫기)
