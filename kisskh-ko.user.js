@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.0.4
+// @version      1.0.5
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -19,7 +19,7 @@
    * ------------------------------------------------------------------ */
   const HANGUL_RE = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/;
   const SUB_API_RE = /\/api\/Sub\/\d+/;
-  const WEEK_MS = 7 * 864e5;
+  const NEG_MS = 864e5; // 제목을 못 찾은 경우 재조회 간격 (1일)
   const LS = {
     settings: 'kkh_settings_v1',
     titles: 'kkh_titles_v1',
@@ -28,6 +28,7 @@
   };
   const DEFAULTS = {
     titlesOn: true,
+    aiTitles: true, // 위키에 없으면 AI로 임시 번역
     subMode: 'dual', // off | dual | ai
     provider: 'gemini', // gemini | openai
     apiKey: '',
@@ -75,7 +76,7 @@
   /* ------------------------------------------------------------------ *
    * 1. 제목 캐시 / 검색 캐시
    * ------------------------------------------------------------------ */
-  const titleCache = loadJSON(LS.titles, {});   // normEn -> {ko, en, ts}
+  const titleCache = loadJSON(LS.titles, {});   // normEn -> {ko, ai, en, ts}
   let titleSaveTimer = null;
   function scheduleTitleSave() {
     if (titleSaveTimer) return;
@@ -159,21 +160,43 @@
     if (e && /429/.test(String(e.message || e))) titleBlockUntil = Date.now() + 90000;
   }
 
+  const TITLE_PROMPT = [
+    '당신은 영화/드라마 제목 번역가입니다. 주어진 영어 제목을 한국에서 통용되는 자연스러운 한국어 제목으로 옮기세요.',
+    '규칙:',
+    '1) 공식 한국어 개봉/방영 제목이 있으면 그것을 사용합니다.',
+    '2) 괄호, 따옴표, 설명, 원제를 덧붙이지 말고 제목만 씁니다.',
+    '3) 입력과 같은 개수의 문자열을 담은 JSON 배열만 출력합니다.'
+  ].join('\n');
+
+  async function translateTitleKo(raw) {
+    if (!settings.apiKey || !settings.aiTitles) return null;
+    try {
+      const arr = await pacedCall([String(raw || '')], null, TITLE_PROMPT);
+      const ko = arr && arr[0] ? String(arr[0]).replace(/^[\s"'\[\]]+|[\s"'\[\]]+$/g, '') : '';
+      if (ko && HANGUL_RE.test(ko) && normKey(ko) !== normKey(raw)) return ko;
+    } catch (e) { noteError(e); }
+    return null;
+  }
+
   const titlePending = new Map();
   async function lookupKoTitle(raw) {
     if (Date.now() < titleBlockUntil) return null;
     const key = normKey(titleVariants(raw)[0] || raw);
     if (!key) return null;
     const c = titleCache[key];
-    if (c && (c.ko || Date.now() - c.ts < WEEK_MS)) return c.ko || null;
+    if (c && (c.ko || Date.now() - c.ts < NEG_MS)) return { ko: c.ko || null, ai: !!c.ai };
     if (titlePending.has(key)) return titlePending.get(key);
     const job = (async () => {
-      let ko = null;
+      let ko = null, ai = false;
       try { ko = await wikiLookup(raw); } catch (e) { noteError(e); }
       if (!ko) { try { ko = await wikidataLookup(raw); } catch (e) { noteError(e); } }
-      titleCache[key] = { ko: ko || null, en: String(raw || '').trim(), ts: Date.now() };
+      if (!ko && settings.aiTitles) {
+        ko = await translateTitleKo(raw);
+        ai = !!ko;
+      }
+      titleCache[key] = { ko: ko || null, ai: ai, en: String(raw || '').trim(), ts: Date.now() };
       scheduleTitleSave();
-      return ko;
+      return { ko: ko || null, ai: ai };
     })();
     titlePending.set(key, job);
     try { return await job; } finally { titlePending.delete(key); }
@@ -188,8 +211,8 @@
     while (titleActive < 2 && titleQueue.length) {
       const job = titleQueue.shift();
       titleActive++;
-      lookupKoTitle(job.text).then(ko => {
-        if (ko) applyKorean(job.el, ko, job.text);
+      lookupKoTitle(job.text).then(res => {
+        if (res && res.ko) applyKorean(job.el, res.ko, job.text, res.ai);
         else if (job.el.isConnected) job.el.dataset.kkhDone = '1';
       }).catch(() => {}).finally(() => {
         titleActive--;
@@ -198,12 +221,13 @@
     }
   }
 
-  function applyKorean(el, ko, en) {
+  function applyKorean(el, ko, en, ai) {
     if (!el || !el.isConnected) return;
     if (!ko || normKey(ko) === normKey(en)) { el.dataset.kkhDone = '1'; return; }
     el.dataset.kkhDone = '1';
     el.dataset.kkhEn = en;
     el.classList.add('kkh-title');
+    if (ai) el.classList.add('kkh-ai'); else el.classList.remove('kkh-ai');
     const textNodes = Array.prototype.filter.call(el.childNodes, n => n.nodeType === 3 && n.textContent.trim());
     if (textNodes.length) {
       textNodes[0].textContent = ko;
@@ -211,12 +235,13 @@
     } else {
       el.textContent = ko;
     }
-    if (!el.getAttribute('title')) el.setAttribute('title', en);
+    if (!el.getAttribute('title')) el.setAttribute('title', (ai ? '(AI 번역) ' : '') + en);
   }
 
   function restoreTitles() {
     document.querySelectorAll('.kkh-title[data-kkh-en]').forEach(el => {
       el.textContent = el.dataset.kkhEn;
+      el.classList.remove('kkh-ai');
     });
   }
 
@@ -225,7 +250,7 @@
       const en = el.dataset.kkhEn;
       const key = normKey(titleVariants(en)[0] || en);
       const c = titleCache[key];
-      if (c && c.ko) applyKorean(el, c.ko, en);
+      if (c && c.ko) applyKorean(el, c.ko, en, c.ai);
     });
     scanTitles();
   }
@@ -245,8 +270,8 @@
     if (!text || text.length < 2 || text.length > 150) return;
     const key = normKey(titleVariants(text)[0] || text);
     const c = titleCache[key];
-    if (c && c.ko) { applyKorean(el, c.ko, text); return; }
-    if (c && !c.ko && Date.now() - c.ts < WEEK_MS) { el.dataset.kkhDone = '1'; return; }
+    if (c && c.ko) { applyKorean(el, c.ko, text, c.ai); return; }
+    if (c && !c.ko && Date.now() - c.ts < NEG_MS) { el.dataset.kkhDone = '1'; return; }
     titleQueue.push({ el, text });
     pumpTitleQueue();
   }
@@ -445,14 +470,14 @@
     return null;
   }
 
-  async function callTranslator(texts, ctx) {
+  async function callTranslator(texts, ctx, sysPrompt) {
     if (!settings.apiKey) throw new Error('API 키가 설정되지 않았습니다.');
     if (settings.provider === 'gemini') {
       const model = settings.model || 'gemini-2.5-flash';
       const u = 'https://generativelanguage.googleapis.com/v1beta/models/' +
         encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(settings.apiKey);
       const body = {
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        systemInstruction: { parts: [{ text: sysPrompt || SYSTEM_PROMPT }] },
         contents: [{ role: 'user', parts: [{ text: userPrompt(texts, ctx) }] }],
         generationConfig: { temperature: 0.3, responseMimeType: 'application/json' }
       };
@@ -474,7 +499,7 @@
       model: settings.model || 'gpt-4o-mini',
       temperature: 0.3,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: sysPrompt || SYSTEM_PROMPT },
         { role: 'user', content: userPrompt(texts, ctx) }
       ]
     };
@@ -537,11 +562,11 @@
   // 이후 요청 간 최소 간격을 자동으로 늘려 같은 제한에 반복해서 걸리지 않게 한다.
   let apiPaceMs = 0;     // 요청 사이 최소 간격 (429 발생 시 자동 상향)
   let apiLastCall = 0;   // 마지막 요청 시각
-  async function pacedCall(texts, ctx) {
+  async function pacedCall(texts, ctx, sysPrompt) {
     const wait = apiLastCall + apiPaceMs - Date.now();
     if (wait > 0) await sleep(wait);
     apiLastCall = Date.now();
-    return callTranslator(texts, ctx);
+    return callTranslator(texts, ctx, sysPrompt);
   }
 
   // 배치 번역: 모델이 문장을 합쳐서 개수가 안 맞으면 재시도 후 배치를 반으로
@@ -710,7 +735,8 @@
       '#kkh-panel button{cursor:pointer;background:#39404b;color:#fff;border:none;border-radius:6px;padding:5px 9px;font-size:12px}',
       '#kkh-panel button:hover{background:#4a5361}',
       '#kkh-status{min-height:16px;margin-top:8px;color:#9fd6a0;font-size:11.5px;word-break:break-all}',
-      '.kkh-hint{color:#98a2ad;font-size:11px;margin-top:3px}'
+      '.kkh-hint{color:#98a2ad;font-size:11px;margin-top:3px}',
+      '.kkh-title.kkh-ai{opacity:.82}'
     ].join('');
     document.documentElement.appendChild(style);
 
@@ -728,9 +754,16 @@
       saveSettings();
       if (settings.titlesOn) reapplyTitles(); else restoreTitles();
     });
+    const aiTitleChk = h('input', { type: 'checkbox' });
+    aiTitleChk.checked = settings.aiTitles !== false;
+    aiTitleChk.addEventListener('change', () => {
+      settings.aiTitles = aiTitleChk.checked;
+      saveSettings();
+    });
     const titleSec = h('div', { class: 'sec' }, [
       h('h3', { text: '제목' }),
-      h('label', {}, [titleChk, h('span', { text: '한국어 제목으로 표시 (툴팁에 영어 유지)' })])
+      h('label', {}, [titleChk, h('span', { text: '한국어 제목으로 표시 (툴팁에 영어 유지)' })]),
+      h('label', {}, [aiTitleChk, h('span', { text: '위키에 없으면 AI로 임시 번역 (API 키 필요)' })])
     ]);
 
     // 자막 모드
@@ -782,7 +815,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn,
-      h('div', { class: 'kkh-hint', text: 'v1.0.4 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
+      h('div', { class: 'kkh-hint', text: 'v1.0.5 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
