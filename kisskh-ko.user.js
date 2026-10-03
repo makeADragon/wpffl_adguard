@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.2.2
+// @version      1.2.3
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -176,6 +176,7 @@
 
   async function translateTitleKo(raw) {
     if (!settings.apiKey || !settings.aiTitles) return null;
+    if (Date.now() < apiBlockedUntil) return null;
     try {
       const arr = await pacedCall([String(raw || '')], null, TITLE_PROMPT);
       const ko = arr && arr[0] ? String(arr[0]).replace(/^[\s"'\[\]]+|[\s"'\[\]]+$/g, '') : '';
@@ -616,6 +617,7 @@
   // 이후 요청 간 최소 간격을 자동으로 늘려 같은 제한에 반복해서 걸리지 않게 한다.
   let apiPaceMs = 0;     // 요청 사이 최소 간격 (429 발생 시 자동 상향)
   let apiLastCall = 0;   // 마지막 요청 시각
+  let apiBlockedUntil = 0; // 한도 소진(긴 429) 시 이 시각까지 API 호출 중단
   async function pacedCall(texts, ctx, sysPrompt) {
     const wait = apiLastCall + apiPaceMs - Date.now();
     if (wait > 0) await sleep(wait);
@@ -626,6 +628,7 @@
   // 배치 번역: 모델이 문장을 합쳐서 개수가 안 맞으면 재시도 후 배치를 반으로
   // 쪼개 재귀 처리한다. 끝내 실패한 구간은 null로 남겨 사이트 자막을 유지한다.
   async function translateBatch(texts, ctx, token) {
+    if (Date.now() < apiBlockedUntil) return null; // 한도 소진 상태 → 즉시 사이트 자막 유지
     for (let attempt = 0; attempt < 3; attempt++) {
       if (aiToken !== token) return null;
       let arr = null, waitMs = 0;
@@ -634,6 +637,12 @@
       } catch (e) {
         if (e && e.status === 429) {
           waitMs = Math.max(e.retryAfterMs || 5000, 5000) + 500;
+          if (waitMs > 120000) {
+            // 2분 넘는 대기는 한도 소진(일일 쿼터 등) → 기다리지 않고 이번 실행 중단
+            apiBlockedUntil = Date.now() + waitMs;
+            setStatus('요청 한도 소진 — 약 ' + Math.ceil(waitMs / 60000) + '분 후 다시 시도 (지금은 사이트 자막 유지)');
+            return null;
+          }
           apiPaceMs = Math.max(apiPaceMs, waitMs);
           setStatus('요청 제한(429) — ' + Math.ceil(waitMs / 1000) + '초 후 재시도 (간격 ' + Math.ceil(apiPaceMs / 1000) + '초)');
         } else {
@@ -806,23 +815,40 @@
       tx.onerror = () => rej(tx.error);
     }));
   }
-  async function fetchTextTimeout(url, ms) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), ms);
-    try {
-      const r = await fetch(url, { signal: ctrl.signal });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return await r.text();
-    } finally { clearTimeout(t); }
+  // AbortController가 안 먹는 상황(서비스워커/네트워크 스톨)에서도 확실히 끊기도록
+  // 타임아웃 프로미스와 경주시킨다.
+  function withTimeout(promise, ms, onTimeout) {
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const t = setTimeout(() => {
+        if (done) return;
+        done = true;
+        try { if (onTimeout) onTimeout(); } catch (e) {}
+        const err = new Error('timeout');
+        err.name = 'AbortError';
+        reject(err);
+      }, ms);
+      promise.then(
+        v => { if (!done) { done = true; clearTimeout(t); resolve(v); } },
+        e => { if (!done) { done = true; clearTimeout(t); reject(e); } }
+      );
+    });
   }
-  async function fetchBufTimeout(url, ms) {
+  function fetchTextTimeout(url, ms) {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), ms);
-    try {
+    return withTimeout((async () => {
       const r = await fetch(url, { signal: ctrl.signal });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      return await r.arrayBuffer();
-    } finally { clearTimeout(t); }
+      return r.text();
+    })(), ms, () => ctrl.abort());
+  }
+  function fetchBufTimeout(url, ms) {
+    const ctrl = new AbortController();
+    return withTimeout((async () => {
+      const r = await fetch(url, { signal: ctrl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.arrayBuffer();
+    })(), ms, () => ctrl.abort());
   }
 
   function currentEpId() {
@@ -849,6 +875,7 @@
     warmCancel = false;
     const fail = (msg) => { warmActive = false; setWarmStatus(msg); return 'failed'; };
     setWarmStatus(queueLabel(job) + ' — 목록 읽는 중…');
+    renderWarmQueue();
     let text = '';
     try {
       text = await fetchTextTimeout(job.m3u8Url, 15000);
@@ -1210,7 +1237,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn, mediaBtn, mediaRes,
-      h('div', { class: 'kkh-hint', text: 'v1.2.2 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
+      h('div', { class: 'kkh-hint', text: 'v1.2.3 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
