@@ -78,3 +78,14 @@ kissjav.*#%#//scriptlet('prevent-window-open', '!kissjav')
 /wp-content/themes/fmovie/assets/js/vast-preroll.js$script
 ||cokcok.stream/public/vast.php$xmlhttprequest
 [$domain=/^mimitv[0-9]*\.[a-z]{2,}/]###vast-ad-container
+
+! --- 무비킹 (mvking### 가변 도메인) ---
+! 상단 제휴/도박 배너 스트립 (홈·영상 페이지 공통)
+[$domain=/^mvking[0-9]*\.org/]##.anchor_banner
+! 플레이어 상·하단 광고 슬롯 (사이트 CSS가 #ad_u_2{display:flex !important}로
+! 버티므로 클래스 대신 ID + 요소 선택자로 지정해야 숨겨짐)
+[$domain=/^mvking[0-9]*\.org/]##html #ad_u_1, html #ad_u_2, html #ad_d_1, html #ad_d_2
+! 플로팅 팝업 광고 (popup_frame: 닫기/시간 쿠키 로직). 사이트 공지 팝업이면 이 줄 삭제
+[$domain=/^mvking[0-9]*\.org/]##.popup_frame
+! 광고 이미지 호스트 (배너 전용. 콘텐츠 썸네일은 img.pongping.top 사용)
+||img.imgdd.com^$domain=/^mvking[0-9]*\.org/
