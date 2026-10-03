@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.0.6
+// @version      1.0.7
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
+// @match        https://kisskh.do/*
+// @match        https://kisskh.is/*
+// @match        https://kisskh.la/*
+// @match        https://kisskh.id/*
 // @grant        none
 // @run-at       document-start
 // ==/UserScript==
@@ -19,6 +23,8 @@
    * ------------------------------------------------------------------ */
   const HANGUL_RE = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/;
   const SUB_API_RE = /\/api\/Sub\/\d+/;
+  const MEDIA_RE = /(\.m3u8|\.ts(\?|#|$)|\.m4s|\.mp4|\.aac|m3u8)/i;
+  const mediaStats = {}; // host -> {n, total, last} — 버퍼링 원인 호스트 진단용
   const NEG_MS = 864e5; // 제목을 못 찾은 경우 재조회 간격 (1일)
   const LS = {
     settings: 'kkh_settings_v1',
@@ -343,6 +349,21 @@
             if (Array.isArray(data)) onSubsCaptured(url, data);
           } catch (e) {}
         });
+      }
+
+      // (2) 영상(m3u8/세그먼트) 요청 시간 집계 — 버퍼링 원인 호스트 확인용
+      if (MEDIA_RE.test(url)) {
+        const t0 = Date.now();
+        const done = () => {
+          const host = url.split('/')[2] || '?';
+          const s = mediaStats[host] || (mediaStats[host] = { n: 0, total: 0, last: 0 });
+          s.n++;
+          s.last = Date.now() - t0;
+          s.total += s.last;
+        };
+        this.addEventListener('load', done, { once: true });
+        this.addEventListener('error', done, { once: true });
+        this.addEventListener('abort', done, { once: true });
       }
 
       return origSend.apply(this, arguments);
@@ -830,10 +851,25 @@
       } catch (e) {}
       setStatus('캐시를 비웠습니다');
     });
+    const mediaBtn = h('button', { text: '영상 호스트 통계', style: 'margin-left:6px' });
+    const mediaRes = h('div', { class: 'kkh-hint' });
+    mediaBtn.addEventListener('click', () => {
+      const rows = Object.keys(mediaStats).map(host => {
+        const s = mediaStats[host];
+        return { host: host, n: s.n, avg: Math.round(s.total / s.n), last: s.last };
+      }).sort((a, b) => b.avg - a.avg);
+      if (!rows.length) { mediaRes.textContent = '아직 영상 요청이 감지되지 않았습니다.'; return; }
+      mediaRes.textContent = '';
+      rows.forEach(r => {
+        mediaRes.appendChild(h('div', {
+          text: r.host + ' — ' + r.n + '회, 평균 ' + r.avg + 'ms, 최근 ' + r.last + 'ms'
+        }));
+      });
+    });
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
-      clearBtn,
-      h('div', { class: 'kkh-hint', text: 'v1.0.6 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
+      clearBtn, mediaBtn, mediaRes,
+      h('div', { class: 'kkh-hint', text: 'v1.0.7 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
@@ -876,6 +912,7 @@
       get queue() { return titleQueue.length; },
       get lastSubs() { return lastSubs; },
       get paceMs() { return apiPaceMs; },
+      get mediaStats() { return mediaStats; },
       scanTitles: scanTitles,
       lookupKoTitle: lookupKoTitle,
       watchSubtitles: watchSubtitles
