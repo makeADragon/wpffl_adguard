@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.1.0
+// @version      1.1.1
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -850,7 +850,23 @@
     if (navigator.storage && navigator.storage.persist) { try { navigator.storage.persist(); } catch (e) {} }
     const total = todo.length;
     const stored = [];
-    let done = 0, bytes = 0, next = 0;
+    let done = 0, bytes = 0, persistedBytes = 0, next = 0;
+    // 진행분을 주기적으로 인덱스에 기록 → 중간에 페이지를 닫아도 이어받기/삭제 가능
+    const persistProgress = () => {
+      if (!stored.length) return;
+      const prev = warmIndex[epId] || {};
+      const all = Array.from(new Set([].concat(prev.urls || [], stored)));
+      warmIndex[epId] = {
+        title: ctx.title || prev.title || '',
+        epName: epName,
+        count: all.length,
+        bytes: (prev.bytes || 0) + (bytes - persistedBytes),
+        ts: Date.now(),
+        urls: all
+      };
+      persistedBytes = bytes;
+      saveWarmIndex();
+    };
     async function worker() {
       while (!warmCancel) {
         const i = next++;
@@ -860,7 +876,9 @@
           const buf = await r.arrayBuffer();
           await idbPut(todo[i], buf);
           stored.push(todo[i]);
+          warmUrls.add(todo[i]); // 받는 즉시 재생에도 사용
           bytes += buf.byteLength;
+          if (stored.length % 5 === 0) persistProgress();
           if (stored.length % 3 === 0 || stored.length === total) {
             setWarmStatus('미리 받기… ' + stored.length + '/' + total + ' (' + (bytes / 1048576).toFixed(0) + 'MB)');
           }
@@ -871,18 +889,7 @@
     await Promise.all([worker(), worker(), worker()]);
     warmActive = false;
     if (stored.length) {
-      const prev = warmIndex[epId] || {};
-      const all = Array.from(new Set([].concat(prev.urls || [], stored)));
-      warmIndex[epId] = {
-        title: ctx.title || prev.title || '',
-        epName: epName,
-        count: all.length,
-        bytes: (prev.bytes || 0) + bytes,
-        ts: Date.now(),
-        urls: all
-      };
-      stored.forEach(u => warmUrls.add(u));
-      saveWarmIndex();
+      persistProgress();
       renderWarmList();
     }
     setWarmStatus(warmCancel
@@ -1092,7 +1099,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn, mediaBtn, mediaRes,
-      h('div', { class: 'kkh-hint', text: 'v1.1.0 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
+      h('div', { class: 'kkh-hint', text: 'v1.1.1 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
