@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.2.1
+// @version      1.2.2
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -1210,7 +1210,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn, mediaBtn, mediaRes,
-      h('div', { class: 'kkh-hint', text: 'v1.2.1 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
+      h('div', { class: 'kkh-hint', text: 'v1.2.2 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
@@ -1268,8 +1268,8 @@
 
     setStatus('준비됨 — 한국어 제목 표시 / 자막 개선');
 
-    // 큐에 대기 중인 회차가 있으면 이어서 받기
-    if (warmQueue.length) setTimeout(() => { if (!queueRunning && warmQueue.length) runQueue(); }, 2000);
+    // 큐에 대기 중인 회차는 자동으로 시작하지 않고, 버튼으로 시작하게 안내한다
+    if (warmQueue.length) setWarmStatus('대기 ' + warmQueue.length + '개 — "큐 시작"을 누르면 받습니다');
   }
 
   if (document.readyState === 'loading') {
