@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.0.2
+// @version      1.0.3
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -56,7 +56,17 @@
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), timeoutMs || 12000);
       fetch(url, Object.assign({}, opts, { signal: ctrl.signal }))
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(r => {
+          if (r.ok) return r.json();
+          // 429 본문의 retryDelay(예: "18s")를 읽어 대기시간으로 활용한다
+          return r.text().catch(() => '').then(body => {
+            const err = new Error('HTTP ' + r.status);
+            err.status = r.status;
+            const m = String(body).match(/"retryDelay"\s*:\s*"([\d.]+)s"/);
+            if (m) err.retryAfterMs = Math.ceil(parseFloat(m[1]) * 1000);
+            throw err;
+          });
+        })
         .then(j => { clearTimeout(timer); resolve(j); })
         .catch(e => { clearTimeout(timer); reject(e); });
     });
@@ -587,16 +597,40 @@
     }
   }
 
+  // 페이싱: 429(요청 제한)가 나면 서버가 알려준 retryDelay만큼 기다리고,
+  // 이후 요청 간 최소 간격을 자동으로 늘려 같은 제한에 반복해서 걸리지 않게 한다.
+  let apiPaceMs = 0;     // 요청 사이 최소 간격 (429 발생 시 자동 상향)
+  let apiLastCall = 0;   // 마지막 요청 시각
+  async function pacedCall(texts, ctx) {
+    const wait = apiLastCall + apiPaceMs - Date.now();
+    if (wait > 0) await sleep(wait);
+    apiLastCall = Date.now();
+    return callTranslator(texts, ctx);
+  }
+
   // 배치 번역: 모델이 문장을 합쳐서 개수가 안 맞으면 재시도 후 배치를 반으로
   // 쪼개 재귀 처리한다. 끝내 실패한 구간은 null로 남겨 사이트 자막을 유지한다.
   async function translateBatch(texts, ctx, token) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       if (aiToken !== token) return null;
-      let arr = null;
-      try { arr = await callTranslator(texts, ctx); } catch (e) {}
+      let arr = null, waitMs = 0;
+      try {
+        arr = await pacedCall(texts, ctx);
+      } catch (e) {
+        if (e && e.status === 429) {
+          waitMs = Math.max(e.retryAfterMs || 5000, 5000) + 500;
+          apiPaceMs = Math.max(apiPaceMs, waitMs);
+          setStatus('요청 제한(429) — ' + Math.ceil(waitMs / 1000) + '초 후 재시도 (간격 ' + Math.ceil(apiPaceMs / 1000) + '초)');
+        } else {
+          waitMs = 1200 * (attempt + 1);
+        }
+      }
       if (arr && arr.length === texts.length) return arr;
-      if (arr) setStatus('AI 응답 개수 불일치 (' + arr.length + '/' + texts.length + ') — 다시 시도');
-      await sleep(1000);
+      if (arr) {
+        setStatus('AI 응답 개수 불일치 (' + arr.length + '/' + texts.length + ') — 다시 시도');
+        waitMs = 1000;
+      }
+      if (waitMs) await sleep(waitMs);
     }
     if (texts.length <= 3) return new Array(texts.length).fill(null);
     const mid = Math.ceil(texts.length / 2);
@@ -915,7 +949,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn,
-      h('div', { class: 'kkh-hint', text: 'v1.0.2 · 자막 캐시는 최근 30개 에피소드까지 보관' })
+      h('div', { class: 'kkh-hint', text: 'v1.0.3 · 자막 캐시는 최근 30개 에피소드까지 보관' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
@@ -959,6 +993,7 @@
       get searchCache() { return searchCache; },
       get queue() { return titleQueue.length; },
       get lastSubs() { return lastSubs; },
+      get paceMs() { return apiPaceMs; },
       scanTitles: scanTitles,
       lookupKoTitle: lookupKoTitle,
       resolveKoreanQuery: resolveKoreanQuery,
