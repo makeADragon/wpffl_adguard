@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.2.0
+// @version      1.2.1
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -806,10 +806,23 @@
       tx.onerror = () => rej(tx.error);
     }));
   }
-  function fetchTimeout(url, ms) {
+  async function fetchTextTimeout(url, ms) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ms);
-    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.text();
+    } finally { clearTimeout(t); }
+  }
+  async function fetchBufTimeout(url, ms) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.arrayBuffer();
+    } finally { clearTimeout(t); }
   }
 
   function currentEpId() {
@@ -838,9 +851,7 @@
     setWarmStatus(queueLabel(job) + ' — 목록 읽는 중…');
     let text = '';
     try {
-      const r = await fetchTimeout(job.m3u8Url, 15000);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      text = await r.text();
+      text = await fetchTextTimeout(job.m3u8Url, 15000);
     } catch (e) {
       return fail(queueLabel(job) + ' — 플레이리스트 실패: ' + (e.name === 'AbortError' ? '타임아웃' : (e.message || e)));
     }
@@ -882,8 +893,7 @@
         const i = next++;
         if (i >= total) return;
         try {
-          const r = await fetchTimeout(todo[i], 30000);
-          const buf = await r.arrayBuffer();
+          const buf = await fetchBufTimeout(todo[i], 30000);
           await idbPut(todo[i], buf);
           stored.push(todo[i]);
           warmUrls.add(todo[i]); // 받는 즉시 재생에도 사용
@@ -932,17 +942,23 @@
     if (queueRunning) return;
     queueRunning = true;
     renderWarmQueue();
+    let failed = 0;
     while (warmQueue.length) {
       const job = warmQueue[0];
       const res = await warmJob(job);
       if (res === 'cancelled' || warmCancel) break;
+      if (res === 'failed') failed++;
       if (warmQueue[0] === job) warmQueue.shift();
       saveWarmQueue();
       renderWarmQueue();
     }
     queueRunning = false;
     renderWarmQueue();
-    if (!warmQueue.length) setWarmStatus('큐 완료');
+    if (!warmQueue.length) {
+      setWarmStatus(failed
+        ? '큐 완료 — 실패 ' + failed + '개 (해당 회차를 재생 후 다시 추가하면 이어받기)'
+        : '큐 완료');
+    }
   }
 
   function stopWarm() {
@@ -1194,7 +1210,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn, mediaBtn, mediaRes,
-      h('div', { class: 'kkh-hint', text: 'v1.2.0 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
+      h('div', { class: 'kkh-hint', text: 'v1.2.1 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
