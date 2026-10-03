@@ -1,7 +1,7 @@
 ! Title: wpffl - 스트리밍 사이트 (AdGuard)
 ! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 adguard-general.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.09.28
+! Version: 2026.10.03
 ! Expires: 7 days
 !
 ! 참고: AdGuard는 $webrtc 모디파이어가 제거되어 WebRTC 차단은 scriptlet(nowebrtc)으로 처리합니다.
@@ -61,3 +61,8 @@ kissjav.*#%#//scriptlet('prevent-window-open', '!kissjav')
 [$domain=/^zzap[0-9]*\.[a-z]{2,}/]##.popup-frame, .partner-banner-long, .partner-banner-flex
 ! 고정 팝업 광고 이미지 호스트 (광고 전용, 콘텐츠 아님)
 ||sj.xiaoca.top^
+
+! --- 티비착 (tvchak### 가변 도메인) ---
+! 초기화면 팝업 광고 (z-index 1550 레이어: 광고 이미지 + "오늘 그만보기"/닫기)
+! 광고 이미지는 위 sj.xiaoca.top 규칙으로 이미 차단됨
+[$domain=/^tvchak[0-9]*\.[a-z]{2,}/]##.popup_mdd
