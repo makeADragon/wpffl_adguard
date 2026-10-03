@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.0.1
+// @version      1.0.2
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -532,6 +532,11 @@
         { role: 'user', content: userPrompt(texts, ctx) }
       ]
     };
+    if (/deepseek\.com/i.test(base)) {
+      // DeepSeek은 기본이 thinking(high) 모드 → 번역에는 끄고 JSON 출력을 강제한다
+      body.thinking = { type: 'disabled' };
+      body.response_format = { type: 'json_object' };
+    }
     const d = await fetchJson(u, {
       method: 'POST',
       headers: {
@@ -842,7 +847,7 @@
       h('h3', { text: 'AI 재번역 설정' }),
       h('div', { text: '제공자' }), provSel,
       keyInp, modelInp, baseInp,
-      h('div', { class: 'kkh-hint', text: 'Gemini: aistudio.google.com 에서 무료 키 발급. 키는 브라우저 localStorage에만 저장됩니다.' })
+      h('div', { class: 'kkh-hint', text: 'Gemini: aistudio.google.com 에서 무료 키 발급. DeepSeek: 제공자 "OpenAI 호환", Base URL https://api.deepseek.com, 모델 deepseek-flash. 키는 브라우저 localStorage에만 저장됩니다.' })
     ]);
     provSel.addEventListener('change', () => { settings.provider = provSel.value; saveSettings(); });
     keyInp.addEventListener('change', () => { settings.apiKey = keyInp.value.trim(); saveSettings(); });
@@ -910,7 +915,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn,
-      h('div', { class: 'kkh-hint', text: 'v1.0.1 · 자막 캐시는 최근 30개 에피소드까지 보관' })
+      h('div', { class: 'kkh-hint', text: 'v1.0.2 · 자막 캐시는 최근 30개 에피소드까지 보관' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
