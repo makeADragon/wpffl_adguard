@@ -22,5 +22,4 @@ https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-streamin
 
 ```
 https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/anti-devtools.user.js
-https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/kisskh-ko.user.js
 ```
