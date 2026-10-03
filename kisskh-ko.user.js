@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.0.7
+// @version      1.1.0
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -341,6 +341,9 @@
     XHR.prototype.send = function (body) {
       const url = this.__kkhUrl || '';
 
+      // (0) 재생 플레이리스트 URL 기억 (미리 받기용)
+      if (/\.m3u8/i.test(url)) { lastM3u8Url = url; lastM3u8Href = location.href; }
+
       // (1) 자막 목록 응답 캡처 (읽기 전용)
       if (SUB_API_RE.test(url)) {
         this.addEventListener('load', () => {
@@ -351,7 +354,32 @@
         });
       }
 
-      // (2) 영상(m3u8/세그먼트) 요청 시간 집계 — 버퍼링 원인 호스트 확인용
+      // (2) 미리 받아둔 세그먼트면 네트워크 대신 IndexedDB에서 응답
+      if (warmUrls.has(url) && this.responseType === 'arraybuffer') {
+        const xhr = this;
+        let cancelled = false;
+        const nativeAbort = xhr.abort;
+        xhr.abort = function () { cancelled = true; try { nativeAbort.call(xhr); } catch (e) {} };
+        idbGet(url).then(buf => {
+          if (cancelled) return;
+          if (!buf) { origSend.call(xhr, body); return; }
+          try {
+            Object.defineProperty(xhr, 'readyState', { configurable: true, get: () => 4 });
+            Object.defineProperty(xhr, 'status', { configurable: true, get: () => 200 });
+            Object.defineProperty(xhr, 'statusText', { configurable: true, get: () => 'OK' });
+            Object.defineProperty(xhr, 'response', { configurable: true, get: () => buf });
+            xhr.getResponseHeader = function () { return null; };
+            xhr.getAllResponseHeaders = function () { return ''; };
+          } catch (e) {}
+          xhr.dispatchEvent(new Event('readystatechange'));
+          try { xhr.dispatchEvent(new ProgressEvent('progress', { lengthComputable: true, loaded: buf.byteLength, total: buf.byteLength })); } catch (e) {}
+          xhr.dispatchEvent(new Event('load'));
+          xhr.dispatchEvent(new Event('loadend'));
+        }).catch(() => { try { if (!cancelled) origSend.call(xhr, body); } catch (e) {} });
+        return;
+      }
+
+      // (3) 영상(m3u8/세그먼트) 요청 시간 집계 — 버퍼링 원인 호스트 확인용
       if (MEDIA_RE.test(url)) {
         const t0 = Date.now();
         const done = () => {
@@ -376,6 +404,7 @@
     if (!origFetch) return;
     window.fetch = function (input) {
       const url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (/\.m3u8/i.test(url)) { lastM3u8Url = url; lastM3u8Href = location.href; }
       return origFetch.apply(this, arguments).then(res => {
         if (SUB_API_RE.test(url)) {
           try {
@@ -725,6 +754,179 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * 5b. 캐시 워밍 (미리 받기) — 세그먼트를 IndexedDB에 저장/서빙/삭제
+   * ------------------------------------------------------------------ */
+  const WARM_DB = 'kkh_warm_v1';
+  const WARM_STORE = 'seg';
+  const WARM_INDEX_KEY = 'kkh_warm_index_v1';
+  const warmIndex = loadJSON(WARM_INDEX_KEY, {}); // epId -> {title, epName, count, bytes, ts, urls}
+  const warmUrls = new Set();
+  Object.values(warmIndex).forEach(e => (e.urls || []).forEach(u => warmUrls.add(u)));
+  let lastM3u8Url = null;
+  let lastM3u8Href = '';
+  let warmDbPromise = null;
+  let warmActive = false, warmCancel = false;
+  let warmStatusEl = null, warmResEl = null;
+
+  function setWarmStatus(text) { if (warmStatusEl) warmStatusEl.textContent = text || ''; }
+  function saveWarmIndex() { saveJSON(WARM_INDEX_KEY, warmIndex); }
+
+  function openWarmDb() {
+    if (warmDbPromise) return warmDbPromise;
+    warmDbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(WARM_DB, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(WARM_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return warmDbPromise;
+  }
+  function idbPut(key, val) {
+    return openWarmDb().then(db => new Promise((res, rej) => {
+      const tx = db.transaction(WARM_STORE, 'readwrite');
+      tx.objectStore(WARM_STORE).put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    }));
+  }
+  function idbGet(key) {
+    return openWarmDb().then(db => new Promise((res, rej) => {
+      const tx = db.transaction(WARM_STORE, 'readonly');
+      const rq = tx.objectStore(WARM_STORE).get(key);
+      rq.onsuccess = () => res(rq.result || null);
+      rq.onerror = () => rej(rq.error);
+    }));
+  }
+  function idbDelete(keys) {
+    return openWarmDb().then(db => new Promise((res, rej) => {
+      const tx = db.transaction(WARM_STORE, 'readwrite');
+      const os = tx.objectStore(WARM_STORE);
+      keys.forEach(k => os.delete(k));
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    }));
+  }
+
+  function currentEpId() {
+    return (location.href.match(/[?&]ep=(\d+)/) || [])[1] || (lastSubs && lastSubs.epId) || '';
+  }
+
+  async function warmCurrentEpisode() {
+    if (warmActive) { warmCancel = true; setWarmStatus('중지 중…'); return; }
+    warmActive = true;
+    warmCancel = false;
+    const fail = (msg) => { warmActive = false; setWarmStatus(msg); };
+    const epId = currentEpId();
+    const capEp = (String(lastM3u8Href).match(/[?&]ep=(\d+)/) || [])[1] || '';
+    if (!lastM3u8Url || (epId && capEp && epId !== capEp)) {
+      fail('영상을 한 번 재생한 뒤 눌러주세요');
+      return;
+    }
+    if (!epId) { fail('회차 정보를 찾지 못했습니다'); return; }
+    const ctx = dramaContext();
+    const epName = (location.pathname.match(/Episode-([^/]+)/i) || [])[1] || epId;
+    setWarmStatus('세그먼트 목록 읽는 중…');
+    let text = '';
+    try {
+      const r = await fetch(lastM3u8Url);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      text = await r.text();
+    } catch (e) {
+      fail('플레이리스트를 읽지 못했습니다: ' + (e.message || e));
+      return;
+    }
+    const base = lastM3u8Url.replace(/[?#].*$/, '').replace(/[^/]*$/, '');
+    const urls = [];
+    text.split('\n').forEach(line => {
+      const l = line.trim();
+      if (!l || l[0] === '#') return;
+      if (/^https?:\/\//i.test(l)) urls.push(l);
+      else if (l.slice(0, 2) === '//') urls.push('https:' + l);
+      else urls.push(base + l);
+    });
+    if (!urls.length) { fail('세그먼트를 찾지 못했습니다'); return; }
+    const todo = urls.filter(u => !warmUrls.has(u));
+    if (!todo.length) { fail('이미 전부 받아둔 회차입니다'); return; }
+    if (navigator.storage && navigator.storage.persist) { try { navigator.storage.persist(); } catch (e) {} }
+    const total = todo.length;
+    const stored = [];
+    let done = 0, bytes = 0, next = 0;
+    async function worker() {
+      while (!warmCancel) {
+        const i = next++;
+        if (i >= total) return;
+        try {
+          const r = await fetch(todo[i]);
+          const buf = await r.arrayBuffer();
+          await idbPut(todo[i], buf);
+          stored.push(todo[i]);
+          bytes += buf.byteLength;
+          if (stored.length % 3 === 0 || stored.length === total) {
+            setWarmStatus('미리 받기… ' + stored.length + '/' + total + ' (' + (bytes / 1048576).toFixed(0) + 'MB)');
+          }
+        } catch (e) {}
+        done++;
+      }
+    }
+    await Promise.all([worker(), worker(), worker()]);
+    warmActive = false;
+    if (stored.length) {
+      const prev = warmIndex[epId] || {};
+      const all = Array.from(new Set([].concat(prev.urls || [], stored)));
+      warmIndex[epId] = {
+        title: ctx.title || prev.title || '',
+        epName: epName,
+        count: all.length,
+        bytes: (prev.bytes || 0) + bytes,
+        ts: Date.now(),
+        urls: all
+      };
+      stored.forEach(u => warmUrls.add(u));
+      saveWarmIndex();
+      renderWarmList();
+    }
+    setWarmStatus(warmCancel
+      ? '중지됨 — ' + stored.length + '개 저장 (' + (bytes / 1048576).toFixed(0) + 'MB), 나머지는 다시 누르면 이어받기'
+      : '완료 — ' + stored.length + '개 저장 (' + (bytes / 1048576).toFixed(0) + 'MB)');
+  }
+
+  async function deleteWarmEpisode(epId) {
+    const e = warmIndex[epId];
+    if (!e) return;
+    setWarmStatus('삭제 중… ' + (e.title || epId));
+    try { await idbDelete(e.urls || []); } catch (err) {}
+    (e.urls || []).forEach(u => warmUrls.delete(u));
+    delete warmIndex[epId];
+    saveWarmIndex();
+    renderWarmList();
+    setWarmStatus('삭제됨: ' + ((e.title || '') + (e.epName ? ' Ep' + e.epName : '') || epId) + ' (' + ((e.bytes || 0) / 1048576).toFixed(0) + 'MB)');
+  }
+
+  function renderWarmList() {
+    if (!warmResEl) return;
+    warmResEl.textContent = '';
+    const ids = Object.keys(warmIndex).sort((a, b) => (warmIndex[b].ts || 0) - (warmIndex[a].ts || 0));
+    if (!ids.length) {
+      warmResEl.appendChild(h('div', { class: 'kkh-hint', text: '받아둔 회차가 없습니다.' }));
+      return;
+    }
+    ids.forEach(id => {
+      const e = warmIndex[id];
+      const row = h('div', { style: 'display:flex;align-items:center;gap:6px;margin-top:4px' });
+      const label = h('span', {
+        style: 'flex:1;word-break:break-all;font-size:11px;color:#c9d1d9',
+        text: ((e.title || '') || '드라마') + (e.epName ? ' Ep' + e.epName : ' · ep ' + id) +
+          ' — ' + e.count + '개/' + ((e.bytes || 0) / 1048576).toFixed(0) + 'MB'
+      });
+      const btn = h('button', { text: '삭제' });
+      btn.addEventListener('click', () => deleteWarmEpisode(id));
+      row.appendChild(label);
+      row.appendChild(btn);
+      warmResEl.appendChild(row);
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
    * 6. UI 패널
    * ------------------------------------------------------------------ */
   let panelEl = null, statusEl = null, fabEl = null;
@@ -839,6 +1041,27 @@
     modelInp.addEventListener('change', () => { settings.model = modelInp.value.trim(); saveSettings(); });
     baseInp.addEventListener('change', () => { settings.baseUrl = baseInp.value.trim(); saveSettings(); });
 
+    // 미리 받기 (캐시 워밍)
+    const warmBtn = h('button', { text: '이 회차 미리 받기' });
+    warmBtn.addEventListener('click', () => warmCurrentEpisode());
+    const warmAllBtn = h('button', { text: '전체 삭제', style: 'margin-left:6px' });
+    warmAllBtn.addEventListener('click', async () => {
+      const ids = Object.keys(warmIndex);
+      if (!ids.length) { setWarmStatus('받아둔 회차가 없습니다'); return; }
+      setWarmStatus('전체 삭제 중…');
+      for (const id of ids) { await deleteWarmEpisode(id); }
+      setWarmStatus('전체 삭제 완료');
+    });
+    warmStatusEl = h('div', { class: 'kkh-hint' });
+    warmResEl = h('div', {});
+    const warmSec = h('div', { class: 'sec' }, [
+      h('h3', { text: '미리 받기 (캐시 워밍)' }),
+      h('div', {}, [warmBtn, warmAllBtn]),
+      warmStatusEl,
+      warmResEl,
+      h('div', { class: 'kkh-hint', text: '받아두면 혼잡한 시간에도 끊김 없이 재생됩니다. 편당 약 300MB, 이 브라우저에만 저장.' })
+    ]);
+
     // 캐시/정보
     const clearBtn = h('button', { text: '캐시 비우기' });
     clearBtn.addEventListener('click', () => {
@@ -869,12 +1092,13 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn, mediaBtn, mediaRes,
-      h('div', { class: 'kkh-hint', text: 'v1.0.7 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
+      h('div', { class: 'kkh-hint', text: 'v1.1.0 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
 
-    [titleSec, subSec, aiSec, infoSec, statusEl].forEach(x => panelEl.appendChild(x));
+    [titleSec, subSec, aiSec, warmSec, infoSec, statusEl].forEach(x => panelEl.appendChild(x));
+    renderWarmList();
     root.appendChild(fabEl);
     root.appendChild(panelEl);
     document.documentElement.appendChild(root);
@@ -913,6 +1137,9 @@
       get lastSubs() { return lastSubs; },
       get paceMs() { return apiPaceMs; },
       get mediaStats() { return mediaStats; },
+      get warmIndex() { return warmIndex; },
+      get lastM3u8Url() { return lastM3u8Url; },
+      warmCurrentEpisode: warmCurrentEpisode,
       scanTitles: scanTitles,
       lookupKoTitle: lookupKoTitle,
       watchSubtitles: watchSubtitles
