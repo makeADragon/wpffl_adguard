@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.0.5
+// @version      1.0.6
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -28,7 +28,7 @@
   };
   const DEFAULTS = {
     titlesOn: true,
-    aiTitles: true, // 위키에 없으면 AI로 임시 번역
+    aiTitles: false, // 위키에 없으면 AI로 임시 번역 (기본 꺼짐)
     subMode: 'dual', // off | dual | ai
     provider: 'gemini', // gemini | openai
     apiKey: '',
@@ -212,7 +212,7 @@
       const job = titleQueue.shift();
       titleActive++;
       lookupKoTitle(job.text).then(res => {
-        if (res && res.ko) applyKorean(job.el, res.ko, job.text, res.ai);
+        if (res && res.ko && (!res.ai || settings.aiTitles)) applyKorean(job.el, res.ko, job.text, res.ai);
         else if (job.el.isConnected) job.el.dataset.kkhDone = '1';
       }).catch(() => {}).finally(() => {
         titleActive--;
@@ -250,7 +250,7 @@
       const en = el.dataset.kkhEn;
       const key = normKey(titleVariants(en)[0] || en);
       const c = titleCache[key];
-      if (c && c.ko) applyKorean(el, c.ko, en, c.ai);
+      if (c && c.ko && (!c.ai || settings.aiTitles)) applyKorean(el, c.ko, en, c.ai);
     });
     scanTitles();
   }
@@ -270,7 +270,11 @@
     if (!text || text.length < 2 || text.length > 150) return;
     const key = normKey(titleVariants(text)[0] || text);
     const c = titleCache[key];
-    if (c && c.ko) { applyKorean(el, c.ko, text, c.ai); return; }
+    if (c && c.ko) {
+      if (c.ai && !settings.aiTitles) { el.dataset.kkhDone = '1'; return; }
+      applyKorean(el, c.ko, text, c.ai);
+      return;
+    }
     if (c && !c.ko && Date.now() - c.ts < NEG_MS) { el.dataset.kkhDone = '1'; return; }
     titleQueue.push({ el, text });
     pumpTitleQueue();
@@ -755,10 +759,24 @@
       if (settings.titlesOn) reapplyTitles(); else restoreTitles();
     });
     const aiTitleChk = h('input', { type: 'checkbox' });
-    aiTitleChk.checked = settings.aiTitles !== false;
+    aiTitleChk.checked = !!settings.aiTitles;
     aiTitleChk.addEventListener('change', () => {
       settings.aiTitles = aiTitleChk.checked;
       saveSettings();
+      if (!settings.aiTitles) {
+        // 끄면 AI로 임시 번역해 둔 제목은 원제로 되돌린다
+        document.querySelectorAll('.kkh-title.kkh-ai[data-kkh-en]').forEach(el => {
+          el.textContent = el.dataset.kkhEn;
+          el.classList.remove('kkh-ai');
+        });
+        setStatus('AI 제목 번역 꺼짐');
+      } else {
+        // 켜면 '제목 없음'으로 캐시된 항목을 지워 바로 다시 조회되게 한다
+        for (const k in titleCache) if (!titleCache[k].ko) delete titleCache[k];
+        saveJSON(LS.titles, titleCache);
+        if (settings.titlesOn) reapplyTitles();
+        setStatus('AI 제목 번역 켜짐 (위키에 없는 제목만)');
+      }
     });
     const titleSec = h('div', { class: 'sec' }, [
       h('h3', { text: '제목' }),
@@ -815,7 +833,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn,
-      h('div', { class: 'kkh-hint', text: 'v1.0.5 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
+      h('div', { class: 'kkh-hint', text: 'v1.0.6 · 번역 진행분 자동 저장, 캐시 최근 30개 에피소드' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
