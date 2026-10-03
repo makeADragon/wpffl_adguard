@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kisskh 한글 도우미 (제목 번역 + 자막 개선)
 // @namespace    local.kisskh.ko
-// @version      1.0.0
+// @version      1.0.1
 // @description  kisskh.co 드라마 제목을 한국어로 표시하고, 자막을 개선합니다 (영한 동시자막 / AI 재번역).
 // @author       wpffl_adguard
 // @match        https://kisskh.co/*
@@ -477,7 +477,8 @@
     '1) 각 문장의 의미, 말투, 인물 관계를 유지합니다.',
     '2) 등장인물 이름은 자연스러운 한국어 표기로 일관되게 옮깁니다.',
     '3) 설명이나 주석을 추가하지 않습니다.',
-    '4) 입력과 정확히 같은 개수의 문자열을 담은 JSON 배열만 출력합니다.'
+    '4) 입력 배열의 항목 수와 출력 배열의 항목 수가 정확히 같아야 합니다. 인접한 문장을 하나로 합치거나, 한 문장을 나누거나, 항목을 생략하지 마세요.',
+    '5) JSON 배열 외에는 아무것도 출력하지 않습니다.'
   ].join('\n');
 
   function userPrompt(texts, ctx) {
@@ -581,6 +582,24 @@
     }
   }
 
+  // 배치 번역: 모델이 문장을 합쳐서 개수가 안 맞으면 재시도 후 배치를 반으로
+  // 쪼개 재귀 처리한다. 끝내 실패한 구간은 null로 남겨 사이트 자막을 유지한다.
+  async function translateBatch(texts, ctx, token) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (aiToken !== token) return null;
+      let arr = null;
+      try { arr = await callTranslator(texts, ctx); } catch (e) {}
+      if (arr && arr.length === texts.length) return arr;
+      if (arr) setStatus('AI 응답 개수 불일치 (' + arr.length + '/' + texts.length + ') — 다시 시도');
+      await sleep(1000);
+    }
+    if (texts.length <= 3) return new Array(texts.length).fill(null);
+    const mid = Math.ceil(texts.length / 2);
+    const left = (await translateBatch(texts.slice(0, mid), ctx, token)) || new Array(mid).fill(null);
+    const right = (await translateBatch(texts.slice(mid), ctx, token)) || new Array(texts.length - mid).fill(null);
+    return left.concat(right);
+  }
+
   async function startAiTranslation(cues, enCues, token) {
     if (!settings.apiKey) {
       setStatus('AI 재번역: API 키를 설정해 주세요 (설정 패널)');
@@ -596,7 +615,7 @@
         return;
       }
     }
-    const BATCH = 50;
+    const BATCH = 25;
     const total = Math.ceil(enCues.length / BATCH);
     const lines = new Array(enCues.length).fill(null);
     const ctx = dramaContext();
@@ -606,39 +625,32 @@
       if (aiToken !== token) return; // 트랙이 바뀌면 중단
       const b = Math.min(a + BATCH, enCues.length);
       const texts = enCues.slice(a, b).map(c => c.text);
-      let arr = null;
-      for (let attempt = 0; attempt < 3 && !arr; attempt++) {
-        try {
-          arr = await callTranslator(texts, ctx);
-        } catch (e) {
-          if (attempt < 2) await sleep(1200 * (attempt + 1));
-        }
-      }
-      if (!arr || arr.length !== texts.length) {
-        setStatus('AI 번역 실패 — 사이트 자막을 유지합니다');
-        return;
-      }
-      for (let i = 0; i < arr.length; i++) lines[a + i] = arr[i];
+      const arr = await translateBatch(texts, ctx, token);
+      if (aiToken !== token) return;
+      if (arr) for (let i = 0; i < texts.length; i++) lines[a + i] = arr[i] || null;
       done++;
       setStatus('AI 번역 중… (' + done + '/' + total + ')');
-      if (aiToken === token) applyAiLines(cues, enCues, lines);
+      applyAiLines(cues, enCues, lines);
     }
     if (aiToken !== token) return;
-    if (ck && lines.every(x => x)) {
+    const missed = lines.filter(x => !x).length;
+    if (ck && !missed) {
       try {
         localStorage.setItem(ck, JSON.stringify(lines));
         rememberSubCache(ck);
       } catch (e) {}
     }
-    setStatus('AI 자막 번역 완료 (' + total + '묶음)');
+    setStatus(missed
+      ? 'AI 자막 완료 — ' + missed + '개 구간은 사이트 자막 유지'
+      : 'AI 자막 번역 완료 (' + total + '묶음)');
   }
 
   async function applySubtitleEnhancement(trackEl, cues, key) {
     if (settings.subMode === 'off') return;
     const enSub = findEnSub();
-    if (!enSub) { appliedKey = key; return; }
+    if (!enSub) { appliedKey = key; setStatus('영어 자막을 찾지 못했습니다 (사이트 자막 유지)'); return; }
     const enCues = await getEnCues(enSub.src);
-    if (!enCues || !enCues.length) { appliedKey = key; return; }
+    if (!enCues || !enCues.length) { appliedKey = key; setStatus('영어 자막 파일을 읽지 못했습니다 (사이트 자막 유지)'); return; }
     if (settings.subMode === 'dual') {
       const n = await applyDual(cues, enCues);
       appliedKey = key;
@@ -898,7 +910,7 @@
     const infoSec = h('div', { class: 'sec' }, [
       h('h3', { text: '기타' }),
       clearBtn,
-      h('div', { class: 'kkh-hint', text: 'v1.0.0 · 자막 캐시는 최근 30개 에피소드까지 보관' })
+      h('div', { class: 'kkh-hint', text: 'v1.0.1 · 자막 캐시는 최근 30개 에피소드까지 보관' })
     ]);
 
     statusEl = h('div', { id: 'kkh-status' });
