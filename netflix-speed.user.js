@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Netflix Playback Speed Controller
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1.0
 // @description  넷플릭스 영상 배속을 단축키로 자유롭게 조절합니다.
 // @author       AI Assistant
 // @match        https://www.netflix.com/*
@@ -60,13 +60,4 @@
             showSpeed(1.0);
         }
     }, true);
-
-    // 넷플릭스는 화면 전환 시 비디오 엘리먼트가 재생성되므로 배속 유지를 위한 감시 인터벌
-    setInterval(() => {
-        const video = document.querySelector('video');
-        if (video && video.dataset.speedSet === undefined) {
-            // 새로운 비디오 태그 발견 시 이벤트가 풀리지 않도록 체크용 데이터 부여
-            video.dataset.speedSet = "true";
-        }
-    }, 2000);
 })();
