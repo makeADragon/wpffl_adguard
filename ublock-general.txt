@@ -1,7 +1,7 @@
 ! Title: wpffl - 일반 사이트 (uBlock Origin)
 ! Description: 일반 사이트 광고/요소 차단. 스트리밍 사이트 규칙은 ublock-streaming.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.09.26
+! Version: 2026.10.07
 ! Expires: 7 days
 
 ! ===== 네이버 =====
@@ -19,6 +19,29 @@ m.danawa.com###mdnw-main-bottomSheet-container
 ! ===== 금융 =====
 etfcheck.co.kr##div[data-v-e4caeaf8].slick-slide
 etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.theme--light:first-child > div:first-child > div.mar15 > div.layout > div.flex.sangse_roll_banner.xs12
+
+! ===== investing.com (광고차단 감지 무력화) =====
+! 감지 로직 위치: cdn.investing.com/x/_next/static/chunks/1875.*.js (AdBlockDetection)
+!   1) 미끼 div(.adsbox.ad-banner.pub_300x250.text-ad.textAd.ad-placement)를 붙인 뒤
+!      display / visibility / offsetParent / offsetHeight 검사 → 숨겨져 있으면 "광고차단 감지"
+!   2) doubleclick / yandex 프로브 HEAD 요청이 minBlocked 건 이상 차단되면 "광고차단 감지"
+!   ※ /next_/icon.svg 는 아이콘 스프라이트(페이지당 500여 곳 참조)이므로
+!      막으면 사이트 아이콘이 전부 깨집니다. 절대 차단 금지.
+!
+! 1) 미끼 요소가 절대 숨겨지지 않도록 강제해 감지 신호 무력화
+investing.com##.adsbox.ad-banner.pub_300x250.text-ad.textAd.ad-placement:style(display: block !important; visibility: visible !important; height: 1px !important; width: 1px !important;)
+!
+! 2) 감지 전용 캐니언 URL만 investing.com 한정으로 통과 → 차단 판정이 기준 미달로 감지 실패
+!    (실제 광고 소재 / impression 요청은 기존 필터에서 그대로 차단됩니다)
+@@||static.doubleclick.net/instream/ad_status.js$domain=investing.com
+@@||googleads.g.doubleclick.net/pagead/id$domain=investing.com
+@@||yandex.ru/ads/system/context.js$domain=investing.com
+@@||an.yandex.ru/system/context.js$domain=investing.com
+!
+! 3) 그래도 뜨는 감지 오버레이/팝업 제거 + 배경 스크롤 잠금 해제 (안전장치)
+investing.com##div:has(> div.shadow-dialog)
+investing.com##[class^="ad-notification"], [id^="adNotification"], .adbBetterExperiencePopup
+investing.com##body:style(overflow: auto !important;)
 
 ! ===== 기타 (전역) =====
 ||h2.apiapi199.com/data/banner/*
