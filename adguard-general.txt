@@ -1,7 +1,7 @@
 ! Title: wpffl - 일반 사이트 (AdGuard)
 ! Description: 일반 사이트 광고/요소 차단. 스트리밍 사이트 규칙은 adguard-streaming.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.10.07.3
+! Version: 2026.10.07.4
 ! Expires: 7 days
 
 ! ===== 네이버 =====
@@ -17,8 +17,25 @@ m.danawa.com###mdnw-main-dimm
 m.danawa.com###mdnw-main-bottomSheet-container
 
 ! ===== 금융 =====
+! ⚠ data-v-e4caeaf8 는 Vue 빌드 해시라 사이트 재배포 시 값이 바뀐다.
+!   깨지면 .slick-slide 로 단순화할 것. (2026.10.07 현재 7건 매칭으로 유효)
 etfcheck.co.kr##div[data-v-e4caeaf8].slick-slide
-etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.theme--light:first-child > div:first-child > div.mar15 > div.layout > div.flex.sangse_roll_banner.xs12
+!
+! 아래 규칙은 #_content > div.container > div.v-card--flat... > div.mar15 > div.layout > ... 식의
+! 5단계 경로를 지정했는데, 사이트 리뉴얼로 div.v-card--flat / div.mar15 가 사라져 0건 매칭(죽은 규칙)이었다.
+! 타깃 .sangse_roll_banner 자체는 살아있으므로 단일 클래스로 교체함. (2026.10.07 검증)
+etfcheck.co.kr##.sangse_roll_banner
+!
+! --- 초기 이벤트 팝업 (#event_popup — "오늘 그만보기 / 닫기") ---
+!    팝업 이미지 경로에 날짜가 들어가 자주 교체됨(/assets/img/popup/SOL_388_513_YYYYMMDD.jpg).
+!    → 이미지만 바뀌고 DOM 구조(#event_popup, .eventDialog)는 유지되므로 아래 셀렉터가 안전하다.
+etfcheck.co.kr###event_popup
+etfcheck.co.kr##.v-dialog.eventDialog
+etfcheck.co.kr##.v-dialog__content:has(> .v-dialog.eventDialog)
+!    팝업 뒤 어두운 스크림(Vuetify v-overlay). 이 사이트에선 v-dialog 전용이라 함께 제거.
+!    ⚠ 모바일 내비게이션 서랍(v-navigation-drawer)도 v-overlay 를 쓰므로,
+!      사이드 메뉴 배경이 사라지면 이 줄만 주석 처리할 것.
+etfcheck.co.kr##.v-overlay
 
 ! ===== investing.com (광고차단 감지 무력화) =====
 ! 감지 로직 위치: cdn.investing.com/x/_next/static/chunks/1875.*.js (AdBlockDetection)
