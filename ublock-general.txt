@@ -1,7 +1,7 @@
 ! Title: wpffl - 일반 사이트 (uBlock Origin)
 ! Description: 일반 사이트 광고/요소 차단. 스트리밍 사이트 규칙은 ublock-streaming.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.10.07.2
+! Version: 2026.10.07.3
 ! Expires: 7 days
 
 ! ===== 네이버 =====
@@ -31,10 +31,18 @@ etfcheck.co.kr###_content > div.container > div.v-card.v-card--flat.v-sheet.them
 !      막으면 사이트 아이콘이 전부 깨집니다. 절대 차단 금지.
 !
 ! 0) 핵심 — 팝업 렌더 자체를 막는다 (깜빡임 원천 차단)
-!    쿠키를 숫자가 아닌 값으로 덮어쓰면 +u = NaN → Math.floor(NaN) >= 1 === false
-!    → shouldDisplayPopup() 이 false 를 돌려주므로 팝업이 애초에 그려지지 않음.
-!    호스트전용 쿠키가 사이트의 .investing.com 쿠키보다 파싱 시 나중에 와서 덮어씁니다(검증됨).
-investing.com##+js(set-cookie, adBlockerNewUserDomains, x)
+!    쿠키 adBlockerNewUserDomains 를 "숫자로 변환 불가능한 값"으로 덮어쓰면
+!    +u = NaN → Math.floor(NaN) >= 1 === false → shouldDisplayPopup() 이 false 를
+!    반환하므로 팝업이 애초에 렌더링되지 않는다.
+!
+!    ⚠ AdGuard 와 값을 통일하기 위해 'true' 를 쓴다. +("true") === NaN 이므로
+!      우회 조건에 정확히 부합한다. (uBO 는 값을 제한하지 않지만 이쪽을 권장)
+!    참고: AdGuard 는 set-cookie 값이 허용 상수(32767 이하 정수 / true·false·yes·
+!      no·ok·hide·emptyObj 등)로 제한돼 있어 'x' 같은 값은 조용히 무시된다.
+!
+!    path=/ 로 설정되어 사이트의 .investing.com 쿠키와 파싱 시 경쟁하게 되는데,
+!    document.cookie 는 마지막 값이 이기므로 이 규칙이 덮어쓴다.
+investing.com##+js(set-cookie, adBlockerNewUserDomains, true)
 !
 ! 1) 미끼 요소가 절대 숨겨지지 않도록 강제해 감지 신호 무력화
 investing.com##.adsbox.ad-banner.pub_300x250.text-ad.textAd.ad-placement:style(display: block !important; visibility: visible !important; height: 1px !important; width: 1px !important;)
