@@ -23,4 +23,5 @@ https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/ublock-streamin
 ```
 https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/anti-devtools.user.js
 https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/netflix-speed.user.js
+https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/netflix-volume.user.js
 ```
