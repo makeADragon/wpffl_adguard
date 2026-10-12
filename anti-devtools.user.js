@@ -1,16 +1,55 @@
 // ==UserScript==
 // @name         DevTools 보호 해제 (범용)
 // @namespace    local.anti-devtools
-// @version      1.1.0
-// @description  F12·우클릭·드래그·선택 차단, 무한 debugger 루프, disable-devtool 등 관리자도구 감지 무력화
+// @version      1.3.0
+// @description  F12·우클릭·드래그·선택 차단, 무한 debugger 루프, disable-devtool 등 관리자도구 감지 무력화 (넷플릭스·유튜브 제외)
 // @author       wpffl_adguard
 // @match        *://*/*
+// @exclude      *://*.netflix.com/*
+// @exclude      *://*.nflxvideo.net/*
+// @exclude      *://*.nflxso.net/*
+// @exclude      *://*.nflximg.net/*
+// @exclude      *://*.youtube.com/*
+// @exclude      *://youtu.be/*
+// @exclude      *://*.youtube-nocookie.com/*
+// @exclude      *://*.ytimg.com/*
+// @exclude      *://*.googlevideo.com/*
 // @run-at       document-start
 // @grant        none
 // ==/UserScript==
+// ※ 예외 사이트 추가 방법: 아래 코드의 EXCEPTION_DOMAINS 배열에 도메인만 추가하면 됩니다.
+//   (메타데이터의 @exclude는 선택 사항 — 코드 검사만으로도 확실히 차단됩니다)
 
 (function () {
   'use strict';
+
+  // ---------- 0) 예외 사이트: 여기 등록한 사이트에서는 스크립트를 완전히 끕니다 ----------
+  // 우클릭 등을 자체 기능으로 사용하는 사이트(예: 유튜브 연속재생 메뉴, 넷플릭스 플레이어 메뉴)를
+  // 사용하려면 이 목록에 도메인을 추가하세요. 하위 도메인까지 자동으로 적용됩니다.
+  const EXCEPTION_DOMAINS = [
+    // --- 넷플릭스 ---
+    'netflix.com',
+    'nflxvideo.net',
+    'nflxso.net',
+    'nflximg.net',
+    // --- 유튜브 (연속재생 등 우클릭 메뉴 보호) ---
+    'youtube.com',
+    'youtube-nocookie.com',
+    'youtu.be',
+    'ytimg.com',
+    'googlevideo.com',
+    // --- 필요 시 여기에 추가 ---
+    // 'example.com',
+    // 'tving.com',
+  ];
+
+  const _host = String(location.hostname || '').toLowerCase();
+  const _excluded = EXCEPTION_DOMAINS.some(function (d) {
+    d = String(d).toLowerCase();
+    return _host === d || _host.endsWith('.' + d);
+  });
+  if (_excluded) return;
+
   if (window.__antiDevtoolsInstalled) return;
   window.__antiDevtoolsInstalled = true;
 
