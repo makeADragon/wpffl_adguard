@@ -1,7 +1,7 @@
 ! Title: wpffl - 스트리밍 사이트 (uBlock Origin)
 ! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 ublock-general.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.10.03
+! Version: 2026.10.16
 ! Expires: 7 days
 !
 ! 참고: 도메인 없는 generic 스크립틀릿(##+js)은 uBO가 무시하므로 플레이어 호스트를 나열하는 방식을 사용합니다.
@@ -9,6 +9,8 @@
 ! ===== 숲(sooplive) / 유튜브 등 =====
 vod.sooplive.com###player > div.adballoon_icon
 sooplive.com##.bnrimg_area
+! play.sooplive.com - PC 방송 페이지 상단 행사/인사 배너 (2026.10.16, Brave 요소차단에서 이관)
+play.sooplive.com###pc-ceremony-banner
 
 ! ===== web P2P 차단 =====
 ! --- WebTorrent 공용 트래커 (전역, 안전) ---
