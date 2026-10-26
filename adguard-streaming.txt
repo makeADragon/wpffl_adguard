@@ -1,7 +1,7 @@
 ! Title: wpffl - 스트리밍 사이트 (AdGuard)
 ! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 adguard-general.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.10.16
+! Version: 2026.10.26
 ! Expires: 7 days
 !
 ! 참고: AdGuard는 $webrtc 모디파이어가 제거되어 WebRTC 차단은 scriptlet(nowebrtc)으로 처리합니다.
@@ -91,3 +91,25 @@ kissjav.*#%#//scriptlet('prevent-window-open', '!kissjav')
 [$domain=/^mvking[0-9]*\.org/]##.popup_frame
 ! 광고 이미지 호스트 (배너 전용. 콘텐츠 썸네일은 img.pongping.top 사용)
 ||img.imgdd.com^$domain=/^mvking[0-9]*\.org/
+
+! --- 츄티비 (chtv### 가변 도메인) ---
+! 상단·본문 제휴/도박 배너 묶음 (홈·목록·상세·재생 공통)
+[$domain=/^chtv[0-9]*\.com/]##.left_ban
+! 좌우 고정 팝업 광고 (홈 초기화면)
+[$domain=/^chtv[0-9]*\.com/]##.popup_left, .popup_right, .popup_left2
+! 하단 네이티브 광고 (tsyndicate)
+[$domain=/^chtv[0-9]*\.com/]##.ts-ad-container
+! 재생 전 6초 카운트다운 광고 (실제 플레이어와 별도 iframe)
+[$domain=/^chtv[0-9]*\.com/]##iframe#buffer
+! 헤더 제휴/도박 링크 (서울유흥·19야동·야동망고·링크동맹)
+[$domain=/^chtv[0-9]*\.com/]##header li:has(> a[href^="https://seouldal6.com/"]), header li:has(> a[href^="https://wang010.com"]), header li:has(> a[href^="https://mango59.com"]), header li:has(> a[href^="/index.php/vod/banner2/"]), .header-nav-wrap li:has(> a[href^="https://seouldal6.com/"]), .header-nav-wrap li:has(> a[href^="https://wang010.com"]), .header-nav-wrap li:has(> a[href^="https://mango59.com"]), .header-nav-wrap li:has(> a[href^="/index.php/vod/banner2/"])
+! 광고 이미지 호스트 (배너·팝업 전용. 콘텐츠 썸네일은 sj.xiaoca.top 사용)
+||img.smartnote.blog^$domain=/^chtv[0-9]*\.com/
+! 광고 스크립트: jquery.pics(chunk.js) + tsyndicate + 모바일 삽입 도메인
+||jquery.pics^$script,domain=/^chtv[0-9]*\.com/
+||cdn.tsyndicate.com^$script,domain=/^chtv[0-9]*\.com/
+||fgfdyhjgygjk.live^$domain=/^chtv[0-9]*\.com/
+||yurtyrgygjk.live^$domain=/^chtv[0-9]*\.com/
+||rdgfhggygjk.live^$domain=/^chtv[0-9]*\.com/
+! 재생 전 광고 페이지 (iframe#buffer와 함께 차단)
+||chtv*.com/ad/index.html$subdocument,domain=/^chtv[0-9]*\.com/
