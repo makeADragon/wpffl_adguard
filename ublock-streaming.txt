@@ -1,7 +1,7 @@
 ! Title: wpffl - 스트리밍 사이트 (uBlock Origin)
 ! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 ublock-general.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.10.26
+! Version: 2026.10.31
 ! Expires: 7 days
 !
 ! 참고: 도메인 없는 generic 스크립틀릿(##+js)은 uBO가 무시하므로 플레이어 호스트를 나열하는 방식을 사용합니다.
@@ -11,6 +11,24 @@ vod.sooplive.com###player > div.adballoon_icon
 sooplive.com##.bnrimg_area
 ! play.sooplive.com - PC 방송 페이지 상단 행사/인사 배너 (2026.10.16, Brave 요소차단에서 이관)
 play.sooplive.com###pc-ceremony-banner
+
+! ===== YouTube =====
+! 홈 피드 카드형 광고. 광고 슬롯(ytd-ad-slot-renderer)만 숨기면 빈 카드가 남으므로
+! 부모 ytd-rich-item-renderer까지 :has()로 함께 숨깁니다. (2026.10.31)
+! ⚠ Safari(오리집) 콘텐츠 차단기는 :has() 규칙을 변환하지 않을 수 있습니다.
+!    빈 카드가 남으면 youtube-feed.user.css를 유저스타일로 추가하세요.
+youtube.com##ytd-ad-slot-renderer
+youtube.com##ytd-in-feed-ad-layout-renderer
+youtube.com##ytd-display-ad-renderer
+youtube.com##ytd-promoted-video-renderer
+youtube.com##ytd-compact-promoted-video-renderer
+youtube.com##ytd-promoted-sparkles-web-renderer
+youtube.com##ytd-rich-item-renderer:has(ytd-ad-slot-renderer)
+youtube.com##ytd-rich-item-renderer:has(ytd-in-feed-ad-layout-renderer)
+youtube.com##ytd-rich-item-renderer:has(ytd-display-ad-renderer)
+m.youtube.com##ad-slot-renderer
+m.youtube.com##ytm-companion-ad-renderer
+m.youtube.com##ytm-rich-item-renderer:has(ad-slot-renderer)
 
 ! ===== web P2P 차단 =====
 ! --- WebTorrent 공용 트래커 (전역, 안전) ---
