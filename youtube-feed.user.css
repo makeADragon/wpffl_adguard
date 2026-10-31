@@ -1,0 +1,25 @@
+/* ==UserStyle==
+@name           YouTube 홈 피드 광고 제거 (wpffl)
+@namespace      https://github.com/makeADragon/wpffl_adguard
+@version        1.0.0
+@description    YouTube 홈 피드의 카드형 광고를 부모 카드까지 숨깁니다.
+@author         makeADragon
+==/UserStyle== */
+
+/*
+ * Safari 콘텐츠 차단기(오리집 등)는 필터 목록의 :has() 규칙을 변환하지 못할 수
+ * 있습니다. 이 유저스타일은 페이지에 CSS로 직접 주입되므로 :has()가 동작합니다.
+ */
+@-moz-document domain("youtube.com"), domain("m.youtube.com") {
+  ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer),
+  ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
+  ytd-rich-item-renderer:has(ytd-in-feed-ad-layout-renderer),
+  ytd-rich-item-renderer:has(ytd-display-ad-renderer),
+  ytd-rich-item-renderer:has(ytd-promoted-video-renderer),
+  ytd-rich-item-renderer:has(ytd-compact-promoted-video-renderer),
+  ytd-rich-item-renderer:has(ytd-promoted-sparkles-web-renderer),
+  ytm-rich-item-renderer:has(ad-slot-renderer),
+  ytm-companion-slot[data-content-type] > ytm-companion-ad-renderer {
+    display: none !important;
+  }
+}
