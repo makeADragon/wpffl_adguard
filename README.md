@@ -25,9 +25,12 @@ https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/anti-devtools.u
 https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/netflix-speed.user.js
 ```
 
-### 유저스타일
+### 유저스타일 (오리집 등 Safari 콘텐츠 차단기용)
 
-YouTube 홈 피드의 카드형 광고를 부모 카드까지 숨깁니다. Safari 콘텐츠 차단기가 `:has()` 규칙을 변환하지 못하는 경우(오리집 등)에 사용하세요.
+YouTube 홈 피드의 카드형 광고를 부모 카드까지 숨깁니다.
+
+- **AdGuard / uBlock Origin**: `adguard-streaming.txt` / `ublock-streaming.txt`의 YouTube 규칙으로 처리하므로 이 파일은 필요하지 않습니다.
+- **오리집 등 Safari 콘텐츠 차단기**: 필터 변환 과정에서 `:has()` 규칙이 빠질 수 있어 이 유저스타일을 사용합니다.
 
 ```
 https://raw.githubusercontent.com/makeADragon/wpffl_adguard/main/youtube-feed.user.css
