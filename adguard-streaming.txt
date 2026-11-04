@@ -1,7 +1,7 @@
 ! Title: wpffl - 스트리밍 사이트 (AdGuard)
 ! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 adguard-general.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.10.31
+! Version: 2026.11.04
 ! Expires: 7 days
 !
 ! 참고: AdGuard는 $webrtc 모디파이어가 제거되어 WebRTC 차단은 scriptlet(nowebrtc)으로 처리합니다.
@@ -29,6 +29,16 @@ youtube.com##ytd-rich-item-renderer:has(ytd-display-ad-renderer)
 m.youtube.com##ad-slot-renderer
 m.youtube.com##ytm-companion-ad-renderer
 m.youtube.com##ytm-rich-item-renderer:has(ad-slot-renderer)
+
+! --- Safari/오리집 참고 ---
+! 오리집은 내장 early scriptlet으로 YouTube 플레이어 광고 데이터(adPlacements/adSlots/playerAds)를
+! 이미 제거합니다. `#%#` raw JS는 실행되지 않으므로, 영상 광고 건너뛰기와 안티애드블록 팝업은
+! youtube-adblock.user.js(유저스크립트)로 처리하세요.
+! 아래 규칙은 광고가 정상 로드된 것처럼 보이게 하고, 플레이어 응답에 들어오는
+! 안티애드블록 팝업 데이터를 미리 지웁니다. (이름 있는 scriptlet이라 오리집에서 동작)
+youtube.com#%#//scriptlet('set-constant', 'google_ad_status', '1')
+youtube.com#%#//scriptlet('json-prune', 'auxiliaryUi.messageRenderers.enforcementMessageViewModel')
+youtube.com#%#//scriptlet('set-constant', 'ytInitialPlayerResponse.auxiliaryUi.messageRenderers.enforcementMessageViewModel', 'undefined')
 
 ! ===== web P2P 차단 =====
 ! --- WebTorrent 공용 트래커 (전역, 안전) ---
