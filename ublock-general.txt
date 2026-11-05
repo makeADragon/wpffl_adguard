@@ -1,7 +1,7 @@
 ! Title: wpffl - 일반 사이트 (uBlock Origin)
 ! Description: 일반 사이트 광고/요소 차단. 스트리밍 사이트 규칙은 ublock-streaming.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.10.07.4
+! Version: 2026.11.05.1
 ! Expires: 7 days
 
 ! ===== 네이버 =====
@@ -75,6 +75,9 @@ investing.com##.adsbox.ad-banner.pub_300x250.text-ad.textAd.ad-placement:style(d
 investing.com##div:has(> div.shadow-dialog)
 investing.com##[class^="ad-notification"], [id^="adNotification"], .adbBetterExperiencePopup
 investing.com##body:style(overflow: auto !important;)
+
+! ===== tcafe21.com =====
+tcafe21.com###slotv2-popup
 
 ! ===== 기타 (전역) =====
 ||h2.apiapi199.com/data/banner/*
