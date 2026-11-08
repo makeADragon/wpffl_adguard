@@ -79,8 +79,9 @@ investing.com##div:has(> div.shadow-dialog)
 investing.com##[class^="ad-notification"], [id^="adNotification"], .adbBetterExperiencePopup
 investing.com#$#body { overflow: auto !important; }
 
-! ===== tcafe21.com =====
+! ===== tcafe21.com, lamu.club =====
 tcafe21.com###slotv2-popup
+lamu.club###slotv2-popup
 
 ! ===== 기타 (전역) =====
 ||h2.apiapi199.com/data/banner/*
