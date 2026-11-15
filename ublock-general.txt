@@ -1,7 +1,7 @@
 ! Title: wpffl - 일반 사이트 (uBlock Origin)
 ! Description: 일반 사이트 광고/요소 차단. 스트리밍 사이트 규칙은 ublock-streaming.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.11.05.1
+! Version: 2026.11.15.1
 ! Expires: 7 days
 
 ! ===== 네이버 =====
@@ -11,6 +11,9 @@ naver.com###whale-banner-bottom > div.banner_download
 ! 네이버 모바일 홈 추천 컨텐츠 차단
 m.naver.com##.chf_feed_wrap, .MM_INSP_CARD_EXP, .MM_FOOTER_TOOLS
 m.naver.com##div.wrap.id_search > div.main_footer > div.mf_tool_wrap.MM_FOOTER_TOOLS
+
+! 네이버 모바일 홈 숏텐츠 카드 차단
+m.naver.com##div.comp_shortents.comp_card
 
 ! ===== 쇼핑 =====
 m.danawa.com###mdnw-main-dimm
