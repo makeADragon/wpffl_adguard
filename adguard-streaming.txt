@@ -1,7 +1,7 @@
 ! Title: wpffl - 스트리밍 사이트 (AdGuard)
 ! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 adguard-general.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.11.20
+! Version: 2026.11.20.1
 ! Expires: 7 days
 !
 ! 참고: AdGuard는 $webrtc 모디파이어가 제거되어 WebRTC 차단은 scriptlet(nowebrtc)으로 처리합니다.
@@ -31,13 +31,11 @@ m.youtube.com##ytm-companion-ad-renderer
 m.youtube.com##ytm-rich-item-renderer:has(ad-slot-renderer)
 
 ! 댓글 영역 숨김. 데스크톱은 영상 아래 댓글 목록(ytd-comments)과 우측 댓글 패널,
-! 플레이어 안 댓글 버튼까지 제거. 모바일은 메타데이터의 댓글 진입 캐러셀과 댓글 패널을 제거. (2026.11.20)
-! ⚠ 플레이어/Shorts 버튼 규칙은 :has()라 Safari 콘텐츠 차단기에서는 동작하지 않을 수 있습니다.
+! 모바일은 메타데이터의 댓글 진입 캐러셀과 댓글 패널을 제거. (2026.11.20)
+! 플레이어/Shorts 안 댓글 버튼은 실험 단계 UI라 자주 바뀌므로 넣지 않습니다.
 youtube.com##ytd-comments
 youtube.com##ytd-watch-metadata #comment-teaser
 youtube.com##ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"]
-youtube.com##yt-player-quick-action-buttons > *:has(button[aria-label*="댓글"]), yt-player-quick-action-buttons > *:has(button[aria-label*="omment"])
-youtube.com##reel-action-bar-view-model > button-view-model:has(button[aria-label*="댓글"]), reel-action-bar-view-model > button-view-model:has(button[aria-label*="omment"])
 m.youtube.com##yt-video-metadata-carousel-view-model:has(comments-entry-point-teaser-view-model)
 m.youtube.com##ytm-engagement-panel-section-list-renderer.engagement-panel-comments-section
 m.youtube.com##reel-action-bar-view-model > button-view-model:has(button[aria-label*="댓글"]), reel-action-bar-view-model > button-view-model:has(button[aria-label*="omment"])
