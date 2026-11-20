@@ -1,7 +1,7 @@
 ! Title: wpffl - 스트리밍 사이트 (uBlock Origin)
 ! Description: 스트리밍/영상 사이트 요소 차단 + Web P2P(WebTorrent/WebRTC) 차단. 일반 사이트 규칙은 ublock-general.txt 참고.
 ! Homepage: https://github.com/makeADragon/wpffl_adguard
-! Version: 2026.11.20.1
+! Version: 2026.11.20.2
 ! Expires: 7 days
 !
 ! 참고: 도메인 없는 generic 스크립틀릿(##+js)은 uBO가 무시하므로 플레이어 호스트를 나열하는 방식을 사용합니다.
@@ -39,6 +39,12 @@ youtube.com##ytd-engagement-panel-section-list-renderer[target-id="engagement-pa
 m.youtube.com##yt-video-metadata-carousel-view-model:has(comments-entry-point-teaser-view-model)
 m.youtube.com##ytm-engagement-panel-section-list-renderer.engagement-panel-comments-section
 m.youtube.com##reel-action-bar-view-model > button-view-model:has(button[aria-label*="댓글"]), reel-action-bar-view-model > button-view-model:has(button[aria-label*="omment"])
+!
+! 모바일 댓글 패널을 숨긴 채로 두면, 패널을 닫을 수 없어 body 가 position:fixed 로
+! 잠긴다(댓글 진입 카드가 남아 있는 차단기에서는 카드를 탭하면 스크롤이 멈춤).
+! 패널 래퍼까지 숨기고 body 잠금을 풀어 둔다. (2026.11.20.2)
+m.youtube.com##ytm-engagement-panel.engagement-panel-use-visibility
+m.youtube.com##body:style(position: static !important;)
 
 ! ===== web P2P 차단 =====
 ! --- WebTorrent 공용 트래커 (전역, 안전) ---
