@@ -1,8 +1,8 @@
 /* ==UserStyle==
 @name           YouTube 홈 피드 광고 제거 (wpffl)
 @namespace      https://github.com/makeADragon/wpffl_adguard
-@version        1.1.0
-@description    YouTube 홈/검색/추천 피드의 카드형 광고를 부모 카드까지 숨깁니다.
+@version        1.2.0
+@description    YouTube 홈/검색/추천 피드의 카드형 광고를 부모 카드까지 숨기고 댓글 영역을 제거합니다.
 @author         makeADragon
 ==/UserStyle== */
 
@@ -72,6 +72,19 @@
   ytd-rich-item-renderer:has([aria-label="广告" i]),
   ytm-rich-item-renderer:has([aria-label="Sponsored" i]),
   ytm-rich-item-renderer:has([aria-label="광고" i]) {
+    display: none !important;
+  }
+
+  /* 댓글 영역 (데스크톱/모바일) */
+  ytd-comments,
+  ytd-watch-metadata #comment-teaser,
+  ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"],
+  yt-player-quick-action-buttons > *:has(button[aria-label*="댓글" i]),
+  yt-player-quick-action-buttons > *:has(button[aria-label*="omment" i]),
+  reel-action-bar-view-model > button-view-model:has(button[aria-label*="댓글" i]),
+  reel-action-bar-view-model > button-view-model:has(button[aria-label*="omment" i]),
+  yt-video-metadata-carousel-view-model:has(comments-entry-point-teaser-view-model),
+  ytm-engagement-panel-section-list-renderer.engagement-panel-comments-section {
     display: none !important;
   }
 }
